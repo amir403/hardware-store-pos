@@ -10,13 +10,15 @@ import {
   BoxesIcon,
   DownloadIcon,
   WalletIcon,
+  TruckIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
-import { getCurrentUser } from "@/app/lib/auth";
+import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatMoney, formatDateTime, formatQty, toNum, round2 } from "@/app/lib/format";
-import { getTotalReceivables } from "@/app/lib/ledger";
+import { getTotalReceivables, invoiceSettlement } from "@/app/lib/ledger";
+import { getTotalPayables } from "@/app/lib/payables";
 import { PageHeader } from "@/app/components/page-header";
 
 export const metadata = { title: "Dashboard" };
@@ -24,6 +26,8 @@ export const metadata = { title: "Dashboard" };
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   const settings = await getSettings();
+  // Supplier balances are owner-level numbers, like the suppliers page itself.
+  const canSeePayables = hasRole(user, "ADMIN", "MANAGER");
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -42,6 +46,8 @@ export default async function DashboardPage() {
     inventoryProducts,
     receivables,
     overdueCandidates,
+    payables,
+    recentReturns,
   ] = await Promise.all([
     prisma.sale.aggregate({
       where: { status: "COMPLETED", createdAt: { gte: startOfToday } },
@@ -101,24 +107,53 @@ export default async function DashboardPage() {
         dueDate: true,
         customer: { select: { name: true } },
         payments: { select: { amount: true } },
+        returns: { select: { amount: true, refundAmount: true } },
       },
       orderBy: { dueDate: "asc" },
     }),
+    canSeePayables ? getTotalPayables() : Promise.resolve(0),
+    // Returns are counted on the day the goods came back, so they come off
+    // that day's takings. The month always reaches back past the 7-day window.
+    prisma.saleReturn.findMany({
+      where: {
+        sale: { status: "COMPLETED" },
+        createdAt: {
+          gte:
+            startOfMonth < startOfSevenDaysAgo
+              ? startOfMonth
+              : startOfSevenDaysAgo,
+        },
+      },
+      select: { createdAt: true, amount: true },
+    }),
   ]);
+
+  const returnedSince = (from: Date, to?: Date) =>
+    round2(
+      recentReturns
+        .filter((r) => r.createdAt >= from && (!to || r.createdAt < to))
+        .reduce((sum, r) => sum + toNum(r.amount), 0)
+    );
 
   const lowStock = lowStockProducts.filter(
     (p) => toNum(p.stockQty) <= toNum(p.reorderLevel)
   );
-  const todayRevenue = toNum(todayAgg._sum.total);
-  const monthRevenue = toNum(monthAgg._sum.total);
+  const todayRevenue = round2(
+    toNum(todayAgg._sum.total) - returnedSince(startOfToday)
+  );
+  const monthRevenue = round2(
+    toNum(monthAgg._sum.total) - returnedSince(startOfMonth)
+  );
   const salesByDay = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(startOfSevenDaysAgo);
     date.setDate(date.getDate() + index);
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
-    const revenue = sevenDaySales
-      .filter((sale) => sale.createdAt >= date && sale.createdAt < nextDate)
-      .reduce((sum, sale) => sum + toNum(sale.total), 0);
+    const revenue =
+      sevenDaySales
+        .filter((sale) => sale.createdAt >= date && sale.createdAt < nextDate)
+        .reduce((sum, sale) => sum + toNum(sale.total), 0) -
+      returnedSince(date, nextDate);
     return {
       label: new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(date),
       dateLabel: new Intl.DateTimeFormat("en-GB", {
@@ -141,11 +176,7 @@ export default async function DashboardPage() {
       invoiceNo: sale.invoiceNo,
       customerName: sale.customer?.name ?? "—",
       dueDate: sale.dueDate!,
-      due: round2(
-        toNum(sale.total) -
-          toNum(sale.paidAmount) -
-          sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
-      ),
+      due: invoiceSettlement(sale).due,
     }))
     .filter((sale) => sale.due > 0);
   const overdueTotal = round2(
@@ -185,6 +216,17 @@ export default async function DashboardPage() {
       href: "/customers",
       alert: overdueTotal > 0,
     },
+    ...(canSeePayables
+      ? [
+          {
+            label: "Payables",
+            value: formatMoney(payables, settings.currency),
+            sub: "owed to suppliers",
+            icon: TruckIcon,
+            href: "/suppliers",
+          },
+        ]
+      : []),
     {
       label: "Active Products",
       value: String(productCount),
@@ -209,10 +251,18 @@ export default async function DashboardPage() {
           month: "long",
           year: "numeric",
         }).format(now)}`}
+        actions={
+          <Link
+            href="/pos"
+            className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+          >
+            Start selling
+          </Link>
+        }
       />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon;
           const body = (
@@ -271,12 +321,6 @@ export default async function DashboardPage() {
           {recentSales.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-sm text-zinc-400">No sales yet.</p>
-              <Link
-                href="/pos"
-                className="mt-3 inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700"
-              >
-                Start selling
-              </Link>
             </div>
           ) : (
             <ul className="divide-y divide-zinc-100">

@@ -4,6 +4,7 @@ import {
   ArrowLeftIcon,
   BanIcon,
   CheckCircle2Icon,
+  PackageOpenIcon,
   PauseCircleIcon,
   Undo2Icon,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import {
   round2,
   toNum,
 } from "@/app/lib/format";
+import { invoiceSettlement } from "@/app/lib/ledger";
 import { PrintButton } from "@/app/components/print-button";
 import { RefundButton } from "@/app/components/sales/refund-button";
 import { VoidButton } from "@/app/components/sales/void-button";
@@ -59,10 +61,11 @@ export default async function SaleDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; returned?: string }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const isNew = sp.new === "1";
+  const justReturned = sp.returned ?? null;
 
   const [sale, settings, user] = await Promise.all([
     prisma.sale.findUnique({
@@ -74,6 +77,20 @@ export default async function SaleDetailPage({
         // Ledger payments count towards this invoice's balance, so a receipt
         // reprinted after a part payment must not still demand the full amount.
         payments: { select: { amount: true } },
+        returns: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            user: { select: { name: true } },
+            items: {
+              select: {
+                id: true,
+                quantity: true,
+                amount: true,
+                saleItem: { select: { productName: true } },
+              },
+            },
+          },
+        },
       },
     }),
     getSettings(),
@@ -82,19 +99,37 @@ export default async function SaleDetailPage({
 
   if (!sale) notFound();
 
-  const settled = round2(
-    toNum(sale.paidAmount) +
-      sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
+  const {
+    due: balanceDue,
+    netTotal,
+    returned,
+    refunded,
+  } = invoiceSettlement(sale);
+
+  const soldQty = round2(
+    sale.items.reduce((sum, item) => sum + toNum(item.quantity), 0)
   );
-  const balanceDue = round2(toNum(sale.total) - settled);
+  const totalReturnedQty = round2(
+    sale.returns.reduce(
+      (sum, ret) =>
+        sum + ret.items.reduce((s, item) => s + toNum(item.quantity), 0),
+      0
+    )
+  );
+  const hasReturns = sale.returns.length > 0;
 
   // Refunds reverse both stock and revenue, so they stay with the managers.
   const canManage = hasRole(user, "ADMIN", "MANAGER");
-  const canRefund = sale.status === "COMPLETED" && canManage;
+  // Once some goods have come back, the rest go back the same way — a full
+  // refund or void on top would restock the returned items twice.
+  const canRefund = sale.status === "COMPLETED" && canManage && !hasReturns;
+  const canReturn =
+    sale.status === "COMPLETED" && canManage && totalReturnedQty < soldQty;
   // A void only corrects today's entry; yesterday is already reported.
   const canVoid =
     sale.status === "COMPLETED" &&
     canManage &&
+    !hasReturns &&
     isSameDay(sale.createdAt, new Date());
 
   return (
@@ -108,6 +143,15 @@ export default async function SaleDetailPage({
         </Link>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <PrintButton />
+          {canReturn && (
+            <Link
+              href={`/sales/${sale.id}/return`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              <PackageOpenIcon className="h-4 w-4" />
+              Return items
+            </Link>
+          )}
           {canRefund && (
             <RefundButton
               saleId={sale.id}
@@ -131,6 +175,13 @@ export default async function SaleDetailPage({
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
           <CheckCircle2Icon className="h-5 w-5" />
           Sale completed successfully — stock has been updated.
+        </div>
+      )}
+
+      {justReturned && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
+          <CheckCircle2Icon className="h-5 w-5" />
+          Return {justReturned} recorded — the items are back in stock.
         </div>
       )}
 
@@ -290,10 +341,28 @@ export default async function SaleDetailPage({
             <span>Total</span>
             <span>{formatMoney(toNum(sale.total), settings.currency)}</span>
           </div>
+          {returned > 0 && (
+            <>
+              <div className="flex justify-between text-red-600">
+                <span>Returned</span>
+                <span>−{formatMoney(returned, settings.currency)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-zinc-900">
+                <span>Net total</span>
+                <span>{formatMoney(netTotal, settings.currency)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-zinc-500">
             <span>Paid</span>
             <span>{formatMoney(toNum(sale.paidAmount), settings.currency)}</span>
           </div>
+          {refunded > 0 && (
+            <div className="flex justify-between text-zinc-500">
+              <span>Paid back</span>
+              <span>−{formatMoney(refunded, settings.currency)}</span>
+            </div>
+          )}
           {toNum(sale.changeAmount) > 0 && (
             <div className="flex justify-between text-zinc-500">
               <span>Change</span>
@@ -331,6 +400,42 @@ export default async function SaleDetailPage({
               {sale.dueDate ? `, payable by ${formatDate(sale.dueDate)}` : ""}.
               Please settle this at the counter and keep a copy of this receipt.
             </p>
+          </div>
+        )}
+
+        {hasReturns && (
+          <div className="mt-4 border-t border-dashed border-zinc-200 pt-3 text-xs">
+            <p className="mb-2 font-semibold uppercase tracking-wide text-zinc-500">
+              Returns
+            </p>
+            <ul className="space-y-2">
+              {sale.returns.map((ret) => (
+                <li key={ret.id}>
+                  <div className="flex justify-between text-zinc-900">
+                    <span className="font-medium">
+                      {ret.returnNo} · {formatDateTime(ret.createdAt)}
+                    </span>
+                    <span>−{formatMoney(toNum(ret.amount), settings.currency)}</span>
+                  </div>
+                  <p className="text-zinc-500">
+                    {ret.items
+                      .map(
+                        (item) =>
+                          `${formatQty(toNum(item.quantity))} × ${item.saleItem.productName}`
+                      )
+                      .join(", ")}
+                  </p>
+                  <p className="text-zinc-400">
+                    {toNum(ret.refundAmount) > 0
+                      ? `${formatMoney(toNum(ret.refundAmount), settings.currency)} paid back (${PAYMENT_LABELS[ret.refundMethod] ?? ret.refundMethod})`
+                      : "Credited to account"}
+                    {" · "}
+                    {ret.user.name ?? "—"}
+                    {ret.reason ? ` · ${ret.reason}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

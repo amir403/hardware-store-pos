@@ -6,7 +6,7 @@ import { prisma } from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
-import { getCustomerBalance } from "@/app/lib/ledger";
+import { getCustomerBalance, invoiceSettlement } from "@/app/lib/ledger";
 import { round2, round3, toNum } from "@/app/lib/format";
 
 /** What a caller may send — the pre-transform shape, so dates stay strings. */
@@ -437,9 +437,17 @@ export async function refundSaleAction(formData: FormData) {
         items: {
           include: { product: { select: { trackStock: true } } },
         },
+        _count: { select: { returns: true } },
       },
     });
     if (!sale) return null;
+    // Items already returned are back on the shelf; a full refund on top would
+    // restock them a second time.
+    if (sale._count.returns > 0) {
+      throw new SaleValidationError(
+        `${sale.invoiceNo} already has returns. Return the remaining items instead.`
+      );
+    }
 
     for (const item of sale.items) {
       if (!item.product.trackStock) continue;
@@ -508,9 +516,16 @@ export async function voidSaleAction(formData: FormData) {
         items: {
           include: { product: { select: { trackStock: true } } },
         },
+        _count: { select: { returns: true } },
       },
     });
     if (!sale) return null;
+
+    if (sale._count.returns > 0) {
+      throw new SaleValidationError(
+        `${sale.invoiceNo} already has returns and can no longer be voided.`
+      );
+    }
 
     if (sale.createdAt.getTime() < startOfDay(new Date()).getTime()) {
       throw new SaleValidationError(
@@ -557,4 +572,232 @@ export async function voidSaleAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/inventory");
   revalidatePath("/pos");
+}
+
+// ============================================================
+// Partial returns
+// ============================================================
+
+export type ReturnItemsInput = z.input<typeof returnItemsSchema>;
+
+export type ReturnItemsResult = { returnNo: string } | { error: string };
+
+const returnItemsSchema = z.object({
+  saleId: z.string().min(1),
+  items: z
+    .array(
+      z.object({
+        saleItemId: z.string().min(1),
+        quantity: z.number().positive().max(9_999_999),
+      })
+    )
+    .min(1, "Choose at least one item to return."),
+  /** Cash handed back. Left out = everything the customer is owed back. */
+  refundAmount: z.number().min(0).max(99_999_999).nullable().optional(),
+  refundMethod: z.enum(["CASH", "CARD", "BANK_TRANSFER", "MOBILE", "OTHER"]),
+  reason: nullableNote,
+});
+
+async function buildReturnNo(tx: Prisma.TransactionClient): Promise<string> {
+  const now = new Date();
+  const dateStr = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("");
+  const count = await tx.saleReturn.count({
+    where: { createdAt: { gte: startOfDay(now) } },
+  });
+  return `RET-${dateStr}-${String(count + 1).padStart(4, "0")}`;
+}
+
+/**
+ * Take back some of the goods on a completed sale. The sale itself is never
+ * edited — a SaleReturn records what came back and what it was worth, and the
+ * ledger subtracts it. Each line is credited at what the customer actually paid
+ * for it: its line total scaled by the bill-level discount (and tax, when prices
+ * exclude it). Returning the last units of a line credits whatever is left of
+ * that line's value, so rounding never leaves a few paisa behind.
+ *
+ * Cash can only be handed back up to what the customer has paid beyond the
+ * reduced bill. Anything less stays on their account as credit — which is how
+ * an exchange works: return the old item, then ring up the new one against the
+ * credit. A walk-in has no account, so they always get the full value back.
+ */
+export async function returnSaleItemsAction(
+  input: ReturnItemsInput
+): Promise<ReturnItemsResult> {
+  const user = await getActionUser();
+  if (!hasRole(user, "ADMIN", "MANAGER")) {
+    return { error: "Only managers and admins can take back items." };
+  }
+
+  const parsed = returnItemsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid return." };
+  }
+  const data = parsed.data;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        const sale = await tx.sale.findFirst({
+          where: { id: data.saleId, status: "COMPLETED" },
+          include: {
+            items: {
+              include: {
+                product: { select: { trackStock: true } },
+                returnItems: { select: { quantity: true, amount: true } },
+              },
+            },
+            payments: { select: { amount: true } },
+            returns: { select: { amount: true, refundAmount: true } },
+          },
+        });
+        if (!sale) {
+          throw new SaleValidationError(
+            "Only completed sales can have items returned."
+          );
+        }
+
+        const subtotal = toNum(sale.subtotal);
+        const total = toNum(sale.total);
+        // What one unit of line value actually cost the customer after the
+        // bill discount (and exclusive tax).
+        const factor = subtotal > 0 ? total / subtotal : 0;
+        const itemMap = new Map(sale.items.map((item) => [item.id, item]));
+
+        const lines: {
+          saleItemId: string;
+          productId: string;
+          quantity: number;
+          amount: number;
+          trackStock: boolean;
+        }[] = [];
+
+        for (const requested of data.items) {
+          const item = itemMap.get(requested.saleItemId);
+          if (!item) {
+            throw new SaleValidationError("That item is not on this sale.");
+          }
+          if (lines.some((line) => line.saleItemId === item.id)) {
+            throw new SaleValidationError(
+              `"${item.productName}" is listed twice in this return.`
+            );
+          }
+
+          const soldQty = toNum(item.quantity);
+          const returnedQty = round3(
+            item.returnItems.reduce((sum, r) => sum + toNum(r.quantity), 0)
+          );
+          const remaining = round3(soldQty - returnedQty);
+          const quantity = round3(requested.quantity);
+          if (quantity > remaining) {
+            throw new SaleValidationError(
+              `Only ${remaining} of "${item.productName}" can still be returned.`
+            );
+          }
+
+          const lineValue = round2(toNum(item.lineTotal) * factor);
+          const creditedSoFar = round2(
+            item.returnItems.reduce((sum, r) => sum + toNum(r.amount), 0)
+          );
+          const valueLeft = round2(Math.max(0, lineValue - creditedSoFar));
+          const amount =
+            quantity === remaining
+              ? valueLeft
+              : round2(Math.min(valueLeft, (lineValue * quantity) / soldQty));
+
+          lines.push({
+            saleItemId: item.id,
+            productId: item.productId,
+            quantity,
+            amount,
+            trackStock: item.product.trackStock,
+          });
+        }
+
+        const amount = round2(lines.reduce((sum, l) => sum + l.amount, 0));
+        const taxAmount =
+          total > 0 ? round2((toNum(sale.taxAmount) * amount) / total) : 0;
+
+        // Cash out is limited to what was paid beyond the reduced bill.
+        const before = invoiceSettlement(sale);
+        const netAfter = round2(before.netTotal - amount);
+        const maxRefund = round2(
+          Math.min(amount, Math.max(0, before.settled - netAfter))
+        );
+        const refundAmount = sale.customerId
+          ? round2(Math.min(data.refundAmount ?? maxRefund, maxRefund))
+          : maxRefund;
+
+        const saleReturn = await tx.saleReturn.create({
+          data: {
+            returnNo: await buildReturnNo(tx),
+            saleId: sale.id,
+            userId: user.id,
+            amount,
+            taxAmount,
+            refundAmount,
+            refundMethod: data.refundMethod,
+            reason: data.reason,
+            items: {
+              create: lines.map((line) => ({
+                saleItemId: line.saleItemId,
+                productId: line.productId,
+                quantity: line.quantity,
+                amount: line.amount,
+              })),
+            },
+          },
+        });
+
+        for (const line of lines) {
+          if (!line.trackStock) continue;
+          await tx.product.update({
+            where: { id: line.productId },
+            data: { stockQty: { increment: line.quantity } },
+          });
+          await tx.stockMovement.create({
+            data: {
+              productId: line.productId,
+              type: "RETURN",
+              quantityChange: line.quantity,
+              saleId: sale.id,
+              userId: user.id,
+              reason: `Return ${saleReturn.returnNo} (${sale.invoiceNo})`,
+            },
+          });
+        }
+
+        return { returnNo: saleReturn.returnNo, customerId: sale.customerId };
+      });
+
+      revalidatePath("/sales");
+      revalidatePath(`/sales/${data.saleId}`);
+      revalidatePath("/");
+      revalidatePath("/inventory");
+      revalidatePath("/reports");
+      revalidatePath("/pos");
+      revalidatePath("/dues");
+      revalidatePath("/customers");
+      if (created.customerId) revalidatePath(`/customers/${created.customerId}`);
+
+      return { returnNo: created.returnNo };
+    } catch (error) {
+      if (error instanceof SaleValidationError) {
+        return { error: error.message };
+      }
+      const isUniqueViolation =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: string }).code === "P2002";
+      if (isUniqueViolation && attempt < 2) continue;
+      console.error("returnSaleItems failed:", error);
+      return { error: "Failed to record the return. Please try again." };
+    }
+  }
+
+  return { error: "Failed to generate a return number. Please try again." };
 }

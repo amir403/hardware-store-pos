@@ -5,7 +5,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { formatDate, formatDateTime, formatMoney, round2, toNum } from "@/app/lib/format";
-import { getCustomerBalance } from "@/app/lib/ledger";
+import { getCustomerBalance, invoiceSettlement } from "@/app/lib/ledger";
 import { deletePaymentAction } from "@/app/actions/payments";
 import { PageHeader } from "@/app/components/page-header";
 import { PaymentForm, type OpenInvoice } from "@/app/components/customers/payment-form";
@@ -23,7 +23,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 /** One line on the statement: a bill going out or money coming in. */
 type LedgerRow = {
   key: string;
-  kind: "SALE" | "PAYMENT";
+  kind: "SALE" | "PAYMENT" | "RETURN";
   at: Date;
   title: string;
   subtitle: string;
@@ -54,6 +54,16 @@ export default async function CustomerAccountPage({
             items: { select: { productName: true }, take: 1 },
             _count: { select: { items: true } },
             payments: { select: { amount: true } },
+            returns: {
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                returnNo: true,
+                amount: true,
+                refundAmount: true,
+                createdAt: true,
+              },
+            },
           },
         },
         payments: {
@@ -78,11 +88,7 @@ export default async function CustomerAccountPage({
   const rows: LedgerRow[] = [];
 
   for (const sale of customer.sales) {
-    const paidHere = round2(
-      toNum(sale.paidAmount) +
-        sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
-    );
-    const due = round2(toNum(sale.total) - paidHere);
+    const { due } = invoiceSettlement(sale);
     if (due > 0) {
       invoices.push({
         id: sale.id,
@@ -103,9 +109,31 @@ export default async function CustomerAccountPage({
         : "Sale",
       href: `/sales/${sale.id}`,
       charge: toNum(sale.total),
-      settlement: paidHere,
-      impact: round2(toNum(sale.total) - paidHere),
+      // Only what was paid at the counter: later payments get rows of their
+      // own, so counting them here too would subtract them twice.
+      settlement: toNum(sale.paidAmount),
+      impact: round2(toNum(sale.total) - toNum(sale.paidAmount)),
     });
+
+    // Goods brought back reduce the bill; any cash handed back for them is
+    // money going out again, so only the difference moves the balance.
+    for (const ret of sale.returns) {
+      const refunded = toNum(ret.refundAmount);
+      rows.push({
+        key: `return-${ret.id}`,
+        kind: "RETURN",
+        at: ret.createdAt,
+        title: `Return ${ret.returnNo}`,
+        subtitle:
+          refunded > 0
+            ? `against ${sale.invoiceNo} · ${formatMoney(refunded, currency)} paid back`
+            : `against ${sale.invoiceNo} · credited to account`,
+        href: `/sales/${sale.id}`,
+        charge: round2(-toNum(ret.amount)),
+        settlement: round2(-refunded),
+        impact: round2(-toNum(ret.amount) + refunded),
+      });
+    }
   }
 
   for (const payment of customer.payments) {
@@ -136,11 +164,7 @@ export default async function CustomerAccountPage({
     (sale) =>
       sale.dueDate &&
       sale.dueDate < new Date() &&
-      round2(
-        toNum(sale.total) -
-          toNum(sale.paidAmount) -
-          sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
-      ) > 0
+      invoiceSettlement(sale).due > 0
   );
 
   // Removing a receipt is a correction, not a daily task — admin only.
@@ -299,10 +323,14 @@ export default async function CustomerAccountPage({
                       <p className="text-xs text-zinc-400">{row.subtitle}</p>
                     </td>
                     <td className="px-4 py-3 text-right text-zinc-700">
-                      {row.charge > 0 ? formatMoney(row.charge, currency) : "—"}
+                      {row.charge !== 0 ? formatMoney(row.charge, currency) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-right text-emerald-700">
-                      {row.settlement > 0
+                    <td
+                      className={`px-4 py-3 text-right ${
+                        row.settlement < 0 ? "text-red-600" : "text-emerald-700"
+                      }`}
+                    >
+                      {row.settlement !== 0
                         ? formatMoney(row.settlement, currency)
                         : "—"}
                     </td>

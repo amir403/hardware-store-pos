@@ -127,7 +127,7 @@ export default async function NewPurchasePage({
           suppliers={suppliers}
           currency={settings.currency}
           initialLines={initialLines}
-          initialSupplierId={isReorder ? draftSupplier : ""}
+          initialSupplierId={draftSupplier}
           initialNote={
             isReorder
               ? `Reorder — ${initialLines.length} item${

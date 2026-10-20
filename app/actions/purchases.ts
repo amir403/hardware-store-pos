@@ -6,7 +6,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { round2, round3 } from "@/app/lib/format";
 
-export type CreatePurchaseInput = z.infer<typeof createPurchaseSchema>;
+export type CreatePurchaseInput = z.input<typeof createPurchaseSchema>;
 
 export type CreatePurchaseResult =
   | { purchaseId: string }
@@ -33,6 +33,15 @@ const createPurchaseSchema = z.object({
     .optional()
     .transform((v) => (v && v !== "" ? v : null)),
   updateCost: z.boolean().default(true),
+  /** Paid to the supplier now. Left out = paid in full. */
+  paidAmount: z.number().min(0).max(99_999_999).nullable().optional(),
+  /** <input type="date"> value; only kept while a balance is left unpaid. */
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Due date must be a real date.")
+    .nullable()
+    .optional()
+    .transform((v) => (v ? new Date(`${v}T23:59:59`) : null)),
   items: z
     .array(
       z.object({
@@ -87,6 +96,16 @@ export async function createPurchaseAction(
         };
       });
 
+      // Paying less than the total leaves the rest on the supplier's account.
+      // Without a supplier there is no account to owe, so it must be settled.
+      const paidAmount = round2(
+        Math.min(data.paidAmount ?? subtotal, subtotal)
+      );
+      const balanceDue = round2(subtotal - paidAmount);
+      if (balanceDue > 0 && !data.supplierId) {
+        throw new Error("Choose a supplier before leaving a balance unpaid.");
+      }
+
       const created = await tx.purchase.create({
         data: {
           supplierId: data.supplierId,
@@ -96,6 +115,8 @@ export async function createPurchaseAction(
           subtotal,
           taxAmount: 0,
           total: subtotal,
+          paidAmount,
+          dueDate: balanceDue > 0 ? data.dueDate : null,
           items: {
             create: lineData.map((line) => ({
               productId: line.productId,
@@ -138,6 +159,8 @@ export async function createPurchaseAction(
     revalidatePath("/purchases");
     revalidatePath("/inventory");
     revalidatePath("/products");
+    revalidatePath("/suppliers");
+    if (data.supplierId) revalidatePath(`/suppliers/${data.supplierId}`);
     revalidatePath("/");
 
     return { purchaseId: purchase.id };

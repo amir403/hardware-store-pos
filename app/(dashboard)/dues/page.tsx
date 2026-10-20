@@ -6,7 +6,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatMoney, round2, toNum } from "@/app/lib/format";
-import { getCustomerBalances } from "@/app/lib/ledger";
+import { getCustomerBalances, invoiceSettlement } from "@/app/lib/ledger";
 import { PageHeader } from "@/app/components/page-header";
 import { PrintButton } from "@/app/components/print-button";
 
@@ -79,6 +79,7 @@ export default async function DuesPage() {
         customerId: true,
         customer: { select: { name: true } },
         payments: { select: { amount: true } },
+        returns: { select: { amount: true, refundAmount: true } },
       },
     }),
   ]);
@@ -88,19 +89,16 @@ export default async function DuesPage() {
   // Only invoices that still have money against them belong on this page.
   const openInvoices = sales
     .map((sale) => {
-      const settled = round2(
-        toNum(sale.paidAmount) +
-          sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
-      );
+      const { netTotal, settled, due } = invoiceSettlement(sale);
       const days = daysOverdue(sale.dueDate, now);
       return {
         id: sale.id,
         invoiceNo: sale.invoiceNo,
         customerId: sale.customerId!,
         customerName: sale.customer?.name ?? "—",
-        billed: toNum(sale.total),
+        billed: netTotal,
         settled,
-        due: round2(toNum(sale.total) - settled),
+        due,
         dueDate: sale.dueDate,
         createdAt: sale.createdAt,
         days,

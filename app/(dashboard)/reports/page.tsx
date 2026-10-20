@@ -101,16 +101,53 @@ export default async function ReportsPage({
     orderBy: { createdAt: "asc" },
   });
 
+  // Goods brought back in the range, counted on the day they came back.
+  const returns = await prisma.saleReturn.findMany({
+    where: {
+      sale: { status: "COMPLETED" },
+      createdAt: { gte: fromAt, lte: toAt },
+    },
+    select: {
+      amount: true,
+      taxAmount: true,
+      refundAmount: true,
+      createdAt: true,
+      sale: {
+        select: { paymentMethod: true, user: { select: { name: true } } },
+      },
+      items: {
+        select: {
+          quantity: true,
+          amount: true,
+          saleItem: { select: { productName: true } },
+          product: {
+            select: {
+              costPrice: true,
+              category: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
   /* ---------- totals ---------- */
 
-  const revenue = round2(sales.reduce((sum, s) => sum + toNum(s.total), 0));
+  const returned = round2(returns.reduce((sum, r) => sum + toNum(r.amount), 0));
+  const revenue = round2(
+    sales.reduce((sum, s) => sum + toNum(s.total), 0) - returned
+  );
   const collected = round2(
-    sales.reduce((sum, s) => sum + toNum(s.paidAmount), 0)
+    sales.reduce((sum, s) => sum + toNum(s.paidAmount), 0) -
+      returns.reduce((sum, r) => sum + toNum(r.refundAmount), 0)
   );
   const discounts = round2(
     sales.reduce((sum, s) => sum + toNum(s.discountAmount), 0)
   );
-  const taxes = round2(sales.reduce((sum, s) => sum + toNum(s.taxAmount), 0));
+  const taxes = round2(
+    sales.reduce((sum, s) => sum + toNum(s.taxAmount), 0) -
+      returns.reduce((sum, r) => sum + toNum(r.taxAmount), 0)
+  );
 
   // Cost is taken from each product's CURRENT cost price: SaleItem keeps the
   // sale price but no cost snapshot, so this is a good estimate, not a filing
@@ -128,7 +165,11 @@ export default async function ReportsPage({
       )
     );
 
-  const cost = round2(sales.reduce((sum, s) => sum + costOf(s.items), 0));
+  // Returned goods go back on the shelf, so their cost comes off too.
+  const cost = round2(
+    sales.reduce((sum, s) => sum + costOf(s.items), 0) -
+      returns.reduce((sum, r) => sum + costOf(r.items), 0)
+  );
   const grossProfit = round2(revenue - taxes - cost);
   const margin = revenue > 0 ? round2((grossProfit / revenue) * 100) : 0;
   const avgBill = sales.length > 0 ? round2(revenue / sales.length) : 0;
@@ -148,8 +189,12 @@ export default async function ReportsPage({
     const daySales = sales.filter(
       (s) => s.createdAt >= date && s.createdAt < next
     );
+    const dayReturns = returns.filter(
+      (r) => r.createdAt >= date && r.createdAt < next
+    );
     const dayRevenue = round2(
-      daySales.reduce((sum, s) => sum + toNum(s.total), 0)
+      daySales.reduce((sum, s) => sum + toNum(s.total), 0) -
+        dayReturns.reduce((sum, r) => sum + toNum(r.amount), 0)
     );
     return {
       date,
@@ -160,8 +205,12 @@ export default async function ReportsPage({
       revenue: dayRevenue,
       profit: round2(
         dayRevenue -
-          round2(daySales.reduce((sum, s) => sum + toNum(s.taxAmount), 0)) -
-          daySales.reduce((sum, s) => sum + costOf(s.items), 0)
+          round2(
+            daySales.reduce((sum, s) => sum + toNum(s.taxAmount), 0) -
+              dayReturns.reduce((sum, r) => sum + toNum(r.taxAmount), 0)
+          ) -
+          daySales.reduce((sum, s) => sum + costOf(s.items), 0) +
+          dayReturns.reduce((sum, r) => sum + costOf(r.items), 0)
       ),
       count: daySales.length,
     };
@@ -261,6 +310,40 @@ export default async function ReportsPage({
     );
   }
 
+  // Returns reverse their share of each breakdown without counting as a bill.
+  for (const ret of returns) {
+    const retAmount = toNum(ret.amount);
+    const retTax = toNum(ret.taxAmount);
+    const retCost = costOf(ret.items);
+
+    for (const item of ret.items) {
+      const value = toNum(item.amount);
+      const share = retAmount > 0 ? value / retAmount : 0;
+      const itemProfit = round2(
+        value -
+          retTax * share -
+          toNum(item.quantity) * toNum(item.product?.costPrice)
+      );
+      const name = item.saleItem.productName;
+      const category = item.product?.category?.name ?? "Uncategorised";
+      tally(byProduct, name, name, -value, -itemProfit, -toNum(item.quantity), 0);
+      tally(byCategory, category, category, -value, -itemProfit, -toNum(item.quantity), 0);
+    }
+
+    const retProfit = round2(retAmount - retTax - retCost);
+    const cashier = ret.sale.user?.name ?? "Unknown";
+    tally(byCashier, cashier, cashier, -retAmount, -retProfit, 0, 0);
+    tally(
+      byMethod,
+      ret.sale.paymentMethod,
+      PAYMENT_LABELS[ret.sale.paymentMethod] ?? ret.sale.paymentMethod,
+      -retAmount,
+      -retProfit,
+      0,
+      0
+    );
+  }
+
   const topProducts = [...byProduct.values()]
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 10);
@@ -278,7 +361,10 @@ export default async function ReportsPage({
     {
       label: "Revenue",
       value: formatMoney(revenue, currency),
-      sub: `${sales.length} bill${sales.length === 1 ? "" : "s"} · avg ${formatMoney(avgBill, currency)}`,
+      sub:
+        returned > 0
+          ? `${sales.length} bill${sales.length === 1 ? "" : "s"} · ${formatMoney(returned, currency)} returned`
+          : `${sales.length} bill${sales.length === 1 ? "" : "s"} · avg ${formatMoney(avgBill, currency)}`,
       icon: BanknoteIcon,
     },
     {

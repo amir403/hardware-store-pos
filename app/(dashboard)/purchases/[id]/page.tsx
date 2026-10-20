@@ -4,7 +4,8 @@ import { ArrowLeftIcon, CheckCircle2Icon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
-import { formatMoney, formatDateTime, formatQty, toNum } from "@/app/lib/format";
+import { formatDate, formatMoney, formatDateTime, formatQty, toNum } from "@/app/lib/format";
+import { purchaseSettlement } from "@/app/lib/payables";
 import { PrintButton } from "@/app/components/print-button";
 
 export const metadata = { title: "Purchase detail" };
@@ -29,14 +30,20 @@ export default async function PurchaseDetailPage({
       where: { id },
       include: {
         items: { include: { product: { select: { name: true } } } },
-        supplier: { select: { name: true } },
+        supplier: { select: { id: true, name: true } },
         user: { select: { name: true } },
+        payments: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, amount: true, method: true, createdAt: true },
+        },
       },
     }),
     getSettings(),
   ]);
 
   if (!purchase) notFound();
+
+  const { paid, due } = purchaseSettlement(purchase);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -80,9 +87,16 @@ export default async function PurchaseDetailPage({
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">Supplier</span>
-            <span className="text-zinc-900">
-              {purchase.supplier?.name ?? "—"}
-            </span>
+            {purchase.supplier ? (
+              <Link
+                href={`/suppliers/${purchase.supplier.id}`}
+                className="text-zinc-900 hover:underline"
+              >
+                {purchase.supplier.name}
+              </Link>
+            ) : (
+              <span className="text-zinc-900">—</span>
+            )}
           </div>
           <div className="flex justify-between">
             <span className="text-zinc-500">Received by</span>
@@ -126,7 +140,52 @@ export default async function PurchaseDetailPage({
             <span>Total</span>
             <span>{formatMoney(toNum(purchase.total), settings.currency)}</span>
           </div>
+          <div className="flex justify-between text-zinc-500">
+            <span>Paid at purchase</span>
+            <span>
+              {formatMoney(toNum(purchase.paidAmount), settings.currency)}
+            </span>
+          </div>
+          {purchase.payments.map((payment) => (
+            <div
+              key={payment.id}
+              className="flex justify-between text-zinc-500"
+            >
+              <span>Paid {formatDate(payment.createdAt)}</span>
+              <span>{formatMoney(toNum(payment.amount), settings.currency)}</span>
+            </div>
+          ))}
+          {due > 0 ? (
+            <>
+              <div className="flex justify-between border-t border-dashed border-amber-300 pt-1.5 font-semibold text-amber-700">
+                <span>Still owed</span>
+                <span>{formatMoney(due, settings.currency)}</span>
+              </div>
+              {purchase.dueDate && (
+                <p className="text-right text-xs text-amber-700">
+                  payable by {formatDate(purchase.dueDate)}
+                </p>
+              )}
+            </>
+          ) : (
+            paid > 0 && (
+              <p className="text-right text-xs font-medium text-emerald-700">
+                Fully paid
+              </p>
+            )
+          )}
         </div>
+
+        {due > 0 && purchase.supplier && (
+          <div className="mt-4 text-right print:hidden">
+            <Link
+              href={`/suppliers/${purchase.supplier.id}`}
+              className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+            >
+              Pay {purchase.supplier.name}
+            </Link>
+          </div>
+        )}
 
         {purchase.note && (
           <p className="mt-4 border-t border-dashed border-zinc-200 pt-3 text-xs text-zinc-500">

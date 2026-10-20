@@ -6,6 +6,8 @@ import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { formatDateTime, formatMoney, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 import { PartyForm } from "@/app/components/party-form";
+import { getSettings } from "@/app/lib/settings";
+import { getSupplierBalances } from "@/app/lib/payables";
 import {
   createSupplierAction,
   updateSupplierAction,
@@ -26,7 +28,8 @@ export default async function SuppliersPage({
 
   const editId = params.edit;
 
-  const [suppliers, editing] = await Promise.all([
+  const [settings, suppliers, editing] = await Promise.all([
+    getSettings(),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       include: {
@@ -43,11 +46,18 @@ export default async function SuppliersPage({
       : Promise.resolve(null),
   ]);
 
+  // Derived from purchases + supplier payments, never stored.
+  const balances = await getSupplierBalances(suppliers.map((s) => s.id));
+  const totalPayable = [...balances.values()].reduce(
+    (sum, b) => sum + Math.max(0, b.outstanding),
+    0
+  );
+
   return (
     <>
       <PageHeader
         title="Suppliers"
-        description={`${suppliers.length} supplier${suppliers.length === 1 ? "" : "s"}`}
+        description={`${suppliers.length} supplier${suppliers.length === 1 ? "" : "s"} · ${formatMoney(totalPayable, settings.currency)} payable`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -61,6 +71,7 @@ export default async function SuppliersPage({
                   <th className="px-4 py-3 font-medium">Phone</th>
                   <th className="px-4 py-3 text-right font-medium">Purchases</th>
                   <th className="px-4 py-3 font-medium">Last purchase</th>
+                  <th className="px-4 py-3 text-right font-medium">We owe</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -68,65 +79,86 @@ export default async function SuppliersPage({
                 {suppliers.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="px-4 py-10 text-center text-sm text-zinc-400"
                     >
                       No suppliers yet.
                     </td>
                   </tr>
                 )}
-                {suppliers.map((supplier) => (
-                  <tr key={supplier.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-zinc-900">
-                        {supplier.name}
-                      </p>
-                      {supplier.notes && (
-                        <p className="max-w-52 truncate text-xs text-zinc-400">
-                          {supplier.notes}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600">
-                      {supplier.phone ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-zinc-600">
-                      {supplier._count.purchases}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600">
-                      {supplier.purchases[0]
-                        ? `${formatDateTime(supplier.purchases[0].createdAt)} · ${formatMoney(toNum(supplier.purchases[0].total), "PKR")}`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                {suppliers.map((supplier) => {
+                  const owed = balances.get(supplier.id)?.outstanding ?? 0;
+                  return (
+                    <tr key={supplier.id} className="hover:bg-zinc-50">
+                      <td className="px-4 py-3">
                         <Link
-                          href={`/suppliers?edit=${supplier.id}`}
-                          title="Edit"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
+                          href={`/suppliers/${supplier.id}`}
+                          className="font-medium text-zinc-900 hover:underline"
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          {supplier.name}
                         </Link>
-                        {supplier._count.purchases === 0 && (
-                          <form action={deleteSupplierAction}>
-                            <input
-                              type="hidden"
-                              name="id"
-                              value={supplier.id}
-                            />
-                            <button
-                              type="submit"
-                              title="Delete"
-                              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
-                            >
-                              <Trash2Icon className="h-4 w-4" />
-                            </button>
-                          </form>
+                        {supplier.notes && (
+                          <p className="max-w-52 truncate text-xs text-zinc-400">
+                            {supplier.notes}
+                          </p>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-600">
+                        {supplier.phone ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-zinc-600">
+                        {supplier._count.purchases}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-600">
+                        {supplier.purchases[0]
+                          ? `${formatDateTime(supplier.purchases[0].createdAt)} · ${formatMoney(toNum(supplier.purchases[0].total), settings.currency)}`
+                          : "—"}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right font-medium ${
+                          owed > 0
+                            ? "text-amber-700"
+                            : owed < 0
+                              ? "text-emerald-700"
+                              : "text-zinc-400"
+                        }`}
+                      >
+                        {owed > 0
+                          ? formatMoney(owed, settings.currency)
+                          : owed < 0
+                            ? `${formatMoney(-owed, settings.currency)} advance`
+                            : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/suppliers?edit=${supplier.id}`}
+                            title="Edit"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </Link>
+                          {supplier._count.purchases === 0 && (
+                            <form action={deleteSupplierAction}>
+                              <input
+                                type="hidden"
+                                name="id"
+                                value={supplier.id}
+                              />
+                              <button
+                                type="submit"
+                                title="Delete"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+                              >
+                                <Trash2Icon className="h-4 w-4" />
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -12,7 +12,7 @@ import { round2, toNum } from "@/app/lib/format";
  * automatically, with no reconciliation step that could drift.
  */
 export type CustomerBalance = {
-  /** Sum of completed invoice totals. */
+  /** Sum of completed invoice totals, less goods returned. */
   billed: number;
   /** Counter payments plus every payment recorded afterwards. */
   collected: number;
@@ -21,6 +21,52 @@ export type CustomerBalance = {
   /** Invoice value still unpaid, before account credit is applied. */
   invoiceDue: number;
 };
+
+/**
+ * Where one invoice stands once returns are taken into account. Every page that
+ * shows a per-invoice balance goes through this, so a return changes them all.
+ */
+export type InvoiceSettlement = {
+  /** Invoice total less the value of goods brought back. */
+  netTotal: number;
+  /** Paid at the counter plus later payments, less cash refunded on returns. */
+  settled: number;
+  /** Positive = still owed on this invoice. */
+  due: number;
+  /** Value of goods returned against this invoice. */
+  returned: number;
+  /** Cash handed back on those returns. */
+  refunded: number;
+};
+
+export function invoiceSettlement(sale: {
+  total: unknown;
+  paidAmount: unknown;
+  payments: { amount: unknown }[];
+  returns: { amount: unknown; refundAmount: unknown }[];
+}): InvoiceSettlement {
+  const returned = round2(
+    sale.returns.reduce((sum, r) => sum + toNum(r.amount), 0)
+  );
+  const refunded = round2(
+    sale.returns.reduce((sum, r) => sum + toNum(r.refundAmount), 0)
+  );
+  const netTotal = round2(toNum(sale.total) - returned);
+  const settled = round2(
+    toNum(sale.paidAmount) +
+      sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0) -
+      refunded
+  );
+  return { netTotal, settled, due: round2(netTotal - settled), returned, refunded };
+}
+
+/** Prisma `select` fragment with everything `invoiceSettlement` reads. */
+export const settlementSelect = {
+  total: true,
+  paidAmount: true,
+  payments: { select: { amount: true } },
+  returns: { select: { amount: true, refundAmount: true } },
+} as const;
 
 const ZERO: CustomerBalance = {
   billed: 0,
@@ -44,9 +90,7 @@ export async function getCustomerBalances(
     select: {
       id: true,
       customerId: true,
-      total: true,
-      paidAmount: true,
-      payments: { select: { amount: true } },
+      ...settlementSelect,
     },
   });
 
@@ -67,18 +111,16 @@ export async function getCustomerBalances(
     const balance = sale.customerId ? balances.get(sale.customerId) : undefined;
     if (!balance) continue;
 
-    const paidHere = round2(
-      toNum(sale.paidAmount) +
-        sale.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
-    );
+    // Returned goods come off what was billed; cash handed back for them comes
+    // off what was collected. Value not paid back stays as account credit.
+    const { netTotal, settled, due } = invoiceSettlement(sale);
 
-    balance.billed = round2(balance.billed + toNum(sale.total));
-    balance.collected = round2(balance.collected + paidHere);
+    balance.billed = round2(balance.billed + netTotal);
+    balance.collected = round2(balance.collected + settled);
 
     // An invoice never contributes a negative due: overpaying one leaves an
     // advance on the account rather than quietly settling someone else's bill.
-    const net = round2(toNum(sale.total) - paidHere);
-    balance.invoiceDue = round2(balance.invoiceDue + Math.max(0, net));
+    balance.invoiceDue = round2(balance.invoiceDue + Math.max(0, due));
   }
 
   for (const balance of balances.values()) {

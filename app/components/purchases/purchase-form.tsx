@@ -64,6 +64,9 @@ export function PurchaseForm({
   const [referenceNo, setReferenceNo] = useState("");
   const [note, setNote] = useState(initialNote);
   const [updateCost, setUpdateCost] = useState(true);
+  /** Empty means "paid in full", so a cash purchase needs no extra typing. */
+  const [paidDraft, setPaidDraft] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -89,6 +92,9 @@ export function PurchaseForm({
       ),
     [lines]
   );
+
+  const paid = paidDraft === "" ? total : Math.max(0, Number(paidDraft) || 0);
+  const balanceDue = round2(Math.max(0, total - paid));
 
   function addLine(product: PurchaseProduct) {
     setError(null);
@@ -144,6 +150,10 @@ export function PurchaseForm({
       setError("Add at least one product to the purchase.");
       return;
     }
+    if (balanceDue > 0 && !supplierId) {
+      setError("Choose a supplier before leaving a balance unpaid.");
+      return;
+    }
 
     startTransition(async () => {
       const result = await createPurchaseAction({
@@ -151,6 +161,8 @@ export function PurchaseForm({
         referenceNo: referenceNo || null,
         note: note || null,
         updateCost,
+        paidAmount: round2(Math.min(paid, total)),
+        dueDate: balanceDue > 0 && dueDate ? dueDate : null,
         items: lines.map((l) => ({
           productId: l.productId,
           quantity: round3(l.quantity),
@@ -361,6 +373,58 @@ export function PurchaseForm({
           </table>
         )}
       </div>
+
+      {/* Payment to the supplier */}
+      {lines.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 rounded-xl border border-zinc-200 bg-white p-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">
+              Paid now
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={paidDraft}
+              onChange={(e) => setPaidDraft(e.target.value)}
+              placeholder={`${round2(total)} (full)`}
+              className={inputClass}
+            />
+            <p className="text-xs text-zinc-400">
+              Leave empty if paid in full.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">
+              Pay balance by
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              disabled={balanceDue <= 0}
+              onChange={(e) => setDueDate(e.target.value)}
+              className={`${inputClass} disabled:bg-zinc-50 disabled:text-zinc-400`}
+            />
+          </div>
+          <div className="flex flex-col justify-center gap-0.5 sm:items-end">
+            <p className="text-xs text-zinc-500">Left unpaid</p>
+            <p
+              className={`text-lg font-semibold ${
+                balanceDue > 0 ? "text-amber-700" : "text-zinc-400"
+              }`}
+            >
+              {formatMoney(balanceDue, currency)}
+            </p>
+            {balanceDue > 0 && (
+              <p className="text-xs text-zinc-400">
+                {supplierId
+                  ? "goes on the supplier's account"
+                  : "choose a supplier to owe this"}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
