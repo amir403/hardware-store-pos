@@ -1,0 +1,879 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  SearchIcon,
+  PlusIcon,
+  MinusIcon,
+  Trash2Icon,
+  BarcodeIcon,
+  PauseCircleIcon,
+  RotateCcwIcon,
+} from "lucide-react";
+import {
+  createSaleAction,
+  holdSaleAction,
+  discardHeldSaleAction,
+} from "@/app/actions/sales";
+import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
+
+export type PosProduct = {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number;
+  taxRate: number;
+  stockQty: number;
+  unit: string;
+  trackStock: boolean;
+  categoryName: string | null;
+};
+
+export type PosCustomer = { id: string; name: string };
+
+export type PosHeldSaleLine = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+};
+
+export type PosHeldSale = {
+  id: string;
+  invoiceNo: string;
+  note: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  discountAmount: number;
+  total: number;
+  itemCount: number;
+  createdAt: string;
+  lines: PosHeldSaleLine[];
+};
+
+type CartLine = {
+  productId: string;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  taxRate: number;
+  trackStock: boolean;
+  stockQty: number;
+  quantity: number;
+  discount: number;
+};
+
+const PAYMENT_METHODS = [
+  { value: "CASH", label: "Cash" },
+  { value: "CARD", label: "Card" },
+  { value: "BANK_TRANSFER", label: "Bank transfer" },
+  { value: "MOBILE", label: "Mobile" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+/** Function keys the terminal claims; also rendered as the on-screen hint. */
+const SHORTCUTS = [
+  { keys: "F2", label: "search" },
+  { keys: "Alt ↑/↓", label: "qty" },
+  { keys: "F9", label: "hold" },
+  { keys: "F4", label: "complete" },
+];
+
+const inputClass =
+  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+
+export function PosTerminal({
+  products,
+  customers,
+  currency,
+  pricesIncludeTax,
+  heldSales,
+}: {
+  products: PosProduct[];
+  customers: PosCustomer[];
+  currency: string;
+  pricesIncludeTax: boolean;
+  heldSales: PosHeldSale[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const [query, setQuery] = useState("");
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [customerId, setCustomerId] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("0");
+  const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
+  const [paidAmount, setPaidAmount] = useState("");
+  /** Only used when the customer is paying part of the bill on credit. */
+  const [dueDate, setDueDate] = useState("");
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  /** Set when a parked bill has been recalled into this cart. */
+  const [heldSaleId, setHeldSaleId] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products.slice(0, 8);
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.sku && p.sku.toLowerCase().includes(q)) ||
+          (p.barcode && p.barcode.toLowerCase().includes(q))
+      )
+      .slice(0, 8);
+  }, [products, query]);
+
+  const totals = useMemo(() => {
+    let subtotal = 0;
+    let taxAmount = 0;
+    for (const line of cart) {
+      const gross = round2(line.quantity * line.unitPrice);
+      const lineTotal = round2(Math.max(0, gross - line.discount));
+      subtotal = round2(subtotal + lineTotal);
+      if (line.taxRate > 0) {
+        taxAmount = round2(
+          taxAmount +
+            (pricesIncludeTax
+              ? (lineTotal * line.taxRate) / (100 + line.taxRate)
+              : (lineTotal * line.taxRate) / 100)
+        );
+      }
+    }
+    const discount = round2(Math.min(Number(discountAmount) || 0, subtotal));
+    const total = pricesIncludeTax
+      ? round2(subtotal - discount)
+      : round2(subtotal - discount + taxAmount);
+    return { subtotal, taxAmount, discount, total };
+  }, [cart, discountAmount, pricesIncludeTax]);
+
+  const paid = paidAmount === "" ? totals.total : Number(paidAmount) || 0;
+  const change = round2(Math.max(0, paid - totals.total));
+  /** Anything not paid at the counter goes onto the customer's account. */
+  const balanceDue = round2(Math.max(0, totals.total - paid));
+  const isCreditSale = cart.length > 0 && balanceDue > 0;
+
+  function addToCart(product: PosProduct) {
+    setError(null);
+    setCart((prev) => {
+      const existing = prev.find((l) => l.productId === product.id);
+      if (existing) {
+        return prev.map((l) =>
+          l.productId === product.id ? { ...l, quantity: l.quantity + 1 } : l
+        );
+      }
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          name: product.name,
+          unit: product.unit,
+          unitPrice: product.price,
+          taxRate: product.taxRate,
+          trackStock: product.trackStock,
+          stockQty: product.stockQty,
+          quantity: 1,
+          discount: 0,
+        },
+      ];
+    });
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const q = query.trim().toLowerCase();
+    if (!q) return;
+
+    // Exact barcode / SKU match → straight into the cart
+    const exact = products.find(
+      (p) =>
+        (p.barcode && p.barcode.toLowerCase() === q) ||
+        (p.sku && p.sku.toLowerCase() === q)
+    );
+    if (exact) {
+      addToCart(exact);
+      setQuery("");
+      return;
+    }
+
+    // Otherwise add the first filtered result
+    if (results.length > 0) {
+      addToCart(results[0]);
+      setQuery("");
+    }
+  }
+
+  function updateLine(
+    productId: string,
+    patch: Partial<Pick<CartLine, "quantity" | "unitPrice" | "discount">>
+  ) {
+    setCart((prev) =>
+      prev.map((l) =>
+        l.productId === productId
+          ? {
+              ...l,
+              ...patch,
+              quantity: Math.max(0.001, patch.quantity ?? l.quantity),
+              unitPrice: Math.max(0, patch.unitPrice ?? l.unitPrice),
+              discount: Math.max(0, patch.discount ?? l.discount),
+            }
+          : l
+      )
+    );
+  }
+
+  function removeLine(productId: string) {
+    setCart((prev) => prev.filter((l) => l.productId !== productId));
+  }
+
+  function clearCart() {
+    setCart([]);
+    setDiscountAmount("0");
+    setPaidAmount("");
+    setDueDate("");
+    setNote("");
+    setCustomerId("");
+    setHeldSaleId(null);
+    setError(null);
+    searchRef.current?.focus();
+  }
+
+  /** Park the cart as a HELD bill without touching stock. */
+  function holdBill() {
+    setError(null);
+    if (cart.length === 0) {
+      setError("The cart is empty.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await holdSaleAction({
+        items: cart.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          discount: l.discount,
+        })),
+        customerId: customerId || null,
+        discountAmount: Number(discountAmount) || 0,
+        note: note || null,
+        replaceHeldSaleId: heldSaleId,
+      });
+
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+
+      clearCart();
+      router.refresh();
+    });
+  }
+
+  /** Load a parked bill back into the cart, re-reading live product data. */
+  function recall(held: PosHeldSale) {
+    setError(null);
+
+    const lines: CartLine[] = held.lines.map((item) => {
+      const product = products.find((p) => p.id === item.productId);
+      return {
+        productId: item.productId,
+        // Fall back to the snapshot if the product has since been removed.
+        name: product?.name ?? item.productName,
+        unit: product?.unit ?? "pcs",
+        unitPrice: item.unitPrice,
+        taxRate: product?.taxRate ?? 0,
+        trackStock: product?.trackStock ?? false,
+        stockQty: product?.stockQty ?? 0,
+        quantity: item.quantity,
+        discount: item.discount,
+      };
+    });
+
+    setCart(lines);
+    setCustomerId(held.customerId ?? "");
+    setDiscountAmount(String(held.discountAmount || 0));
+    setNote(held.note ?? "");
+    setPaidAmount("");
+    setHeldSaleId(held.id);
+    searchRef.current?.focus();
+  }
+
+  function checkout() {
+    setError(null);
+    if (cart.length === 0) {
+      setError("The cart is empty.");
+      return;
+    }
+    // Checked here too so the cashier sees the reason instead of a server error.
+    if (isCreditSale && !customerId) {
+      setError(
+        "Credit needs an account customer. Select a customer, or collect the full amount."
+      );
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await createSaleAction({
+        items: cart.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          discount: l.discount,
+        })),
+        customerId: customerId || null,
+        discountAmount: Number(discountAmount) || 0,
+        paymentMethod: paymentMethod as CreateSaleInputPaymentMethod,
+        paidAmount: paid,
+        dueDate: isCreditSale && dueDate ? dueDate : null,
+        note: note || null,
+        replaceHeldSaleId: heldSaleId,
+      });
+
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+
+      router.push(`/sales/${result.saleId}?new=1`);
+    });
+  }
+
+  /** Alt+↑/↓ nudges the quantity on the line the cashier last touched. */
+  function bumpQty(delta: number) {
+    const last = cart[cart.length - 1];
+    if (!last) return;
+    updateLine(last.productId, { quantity: round2(last.quantity + delta) });
+  }
+
+  // Keep the latest handlers in a ref so the global listener is registered
+  // once instead of re-binding on every keystroke-driven re-render.
+  const handlers = useRef({ checkout, holdBill, bumpQty });
+  useEffect(() => {
+    handlers.current = { checkout, holdBill, bumpQty };
+  });
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const h = handlers.current;
+
+      if (e.key === "Escape") {
+        // Never destructive: Esc only gets the cashier out of the search box.
+        if (searchRef.current && document.activeElement === searchRef.current) {
+          searchRef.current.blur();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "F2":
+          e.preventDefault();
+          searchRef.current?.focus();
+          searchRef.current?.select();
+          break;
+        case "F4":
+          e.preventDefault();
+          if (!isPending) h.checkout();
+          break;
+        case "F9":
+          e.preventDefault();
+          if (!isPending) h.holdBill();
+          break;
+        case "ArrowUp":
+          if (e.altKey) {
+            e.preventDefault();
+            h.bumpQty(1);
+          }
+          break;
+        case "ArrowDown":
+          if (e.altKey) {
+            e.preventDefault();
+            h.bumpQty(-1);
+          }
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isPending]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
+      {/* Left: search + results */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="relative">
+          <BarcodeIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <input
+            ref={searchRef}
+            type="search"
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Scan barcode or search product name / SKU, then press Enter…"
+            className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          />
+        </div>
+
+        {/* Shortcut hints — only useful on a real keyboard */}
+        <div className="hidden items-center gap-3 text-[11px] text-zinc-500 md:flex">
+          {SHORTCUTS.map((s) => (
+            <span key={s.keys} className="flex items-center gap-1">
+              <kbd className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-zinc-700 shadow-sm">
+                {s.keys}
+              </kbd>
+              {s.label}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {results.map((product) => {
+            const outOfStock =
+              product.trackStock && product.stockQty <= 0;
+            const inCart = cart.find((l) => l.productId === product.id);
+            return (
+              <button
+                key={product.id}
+                type="button"
+                disabled={outOfStock}
+                onClick={() => addToCart(product)}
+                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-zinc-900">
+                    {product.name}
+                  </p>
+                  <p className="truncate text-xs text-zinc-400">
+                    {product.sku ?? "No SKU"}
+                    {product.trackStock && ` · ${product.stockQty} ${product.unit} in stock`}
+                    {!product.trackStock && " · service"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    {formatMoney(product.price, currency)}
+                  </p>
+                  {inCart && (
+                    <p className="text-[11px] font-medium text-emerald-600">
+                      ×{inCart.quantity} in cart
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+          {results.length === 0 && (
+            <div className="col-span-full rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-400">
+              <SearchIcon className="mx-auto mb-2 h-5 w-5" />
+              No products match “{query}”.
+            </div>
+          )}
+        </div>
+
+        {/* Cart */}
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+            <h2 className="text-sm font-semibold text-zinc-900">
+              Cart
+              <span className="ml-2 text-xs font-normal text-zinc-400">
+                {cart.length} item{cart.length === 1 ? "" : "s"}
+              </span>
+            </h2>
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={clearCart}
+                className="text-xs font-medium text-zinc-500 hover:text-red-600"
+              >
+                Clear cart
+              </button>
+            )}
+          </div>
+
+          {cart.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-zinc-400">
+              Scan or click a product to start a sale.
+            </div>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+                  <th className="px-3 py-2 font-medium">Item</th>
+                  <th className="px-2 py-2 font-medium">Qty</th>
+                  <th className="px-2 py-2 font-medium">Price</th>
+                  <th className="px-2 py-2 font-medium">Disc.</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-2 py-2" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {cart.map((line) => {
+                  const lineTotal = round2(
+                    Math.max(
+                      0,
+                      line.quantity * line.unitPrice - line.discount
+                    )
+                  );
+                  const overStock =
+                    line.trackStock && line.quantity > line.stockQty;
+
+                  return (
+                    <tr key={line.productId}>
+                      <td className="px-3 py-2">
+                        <p className="max-w-56 truncate font-medium text-zinc-900">
+                          {line.name}
+                        </p>
+                        {overStock ? (
+                          <p className="text-[11px] font-medium text-red-600">
+                            only {line.stockQty} {line.unit} available
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-zinc-400">
+                            per {line.unit}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateLine(line.productId, {
+                                quantity: round2(line.quantity - 1),
+                              })
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                          >
+                            <MinusIcon className="h-3 w-3" />
+                          </button>
+                          <input
+                            type="number"
+                            min="0.001"
+                            step="any"
+                            value={line.quantity}
+                            onChange={(e) =>
+                              updateLine(line.productId, {
+                                quantity: Number(e.target.value),
+                              })
+                            }
+                            className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateLine(line.productId, {
+                                quantity: round2(line.quantity + 1),
+                              })
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                          >
+                            <PlusIcon className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.unitPrice}
+                          onChange={(e) =>
+                            updateLine(line.productId, {
+                              unitPrice: Number(e.target.value),
+                            })
+                          }
+                          className="h-7 w-20 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                        />
+                      </td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.discount}
+                          onChange={(e) =>
+                            updateLine(line.productId, {
+                              discount: Number(e.target.value),
+                            })
+                          }
+                          className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold text-zinc-900">
+                        {formatMoney(lineTotal, currency)}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeLine(line.productId)}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2Icon className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Held bills */}
+        {heldSales.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-amber-200 bg-white">
+            <div className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-3">
+              <PauseCircleIcon className="h-4 w-4 text-amber-700" />
+              <h2 className="text-sm font-semibold text-amber-900">
+                Held bills
+                <span className="ml-2 text-xs font-normal text-amber-700">
+                  {heldSales.length} parked
+                </span>
+              </h2>
+            </div>
+            <ul className="divide-y divide-zinc-100">
+              {heldSales.map((held) => (
+                <li
+                  key={held.id}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                    held.id === heldSaleId ? "bg-amber-50/60" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-zinc-900">
+                      {held.invoiceNo}
+                      {held.id === heldSaleId && (
+                        <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                          in cart
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-zinc-400">
+                      {held.itemCount} item{held.itemCount === 1 ? "" : "s"} ·{" "}
+                      {held.customerName ?? "Walk-in"} ·{" "}
+                      {formatDateTime(held.createdAt)}
+                    </p>
+                    {held.note && (
+                      <p className="truncate text-xs italic text-zinc-400">
+                        “{held.note}”
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm font-semibold text-zinc-900">
+                      {formatMoney(held.total, currency)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => recall(held)}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-medium text-white transition hover:bg-amber-500"
+                    >
+                      <RotateCcwIcon className="h-3.5 w-3.5" />
+                      Recall
+                    </button>
+                    <form action={discardHeldSaleAction}>
+                      <input type="hidden" name="id" value={held.id} />
+                      <button
+                        type="submit"
+                        title="Discard held bill"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Right: checkout panel */}
+      <div className="flex h-fit flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 xl:sticky xl:top-6">
+        <h2 className="text-sm font-semibold text-zinc-900">Checkout</h2>
+
+        {error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {/* Totals */}
+        <div className="flex flex-col gap-1.5 border-b border-zinc-100 pb-4 text-sm">
+          <div className="flex justify-between text-zinc-500">
+            <span>Subtotal</span>
+            <span>{formatMoney(totals.subtotal, currency)}</span>
+          </div>
+          <div className="flex items-center justify-between text-zinc-500">
+            <span>Sale discount</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={discountAmount}
+              onChange={(e) => setDiscountAmount(e.target.value)}
+              className="h-8 w-28 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+            />
+          </div>
+          {totals.taxAmount > 0 && (
+            <div className="flex justify-between text-zinc-500">
+              <span>Tax {pricesIncludeTax ? "(included)" : ""}</span>
+              <span>{formatMoney(totals.taxAmount, currency)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t border-zinc-100 pt-2 text-base font-semibold text-zinc-900">
+            <span>Total</span>
+            <span>{formatMoney(totals.total, currency)}</span>
+          </div>
+        </div>
+
+        {/* Payment */}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">
+              Customer
+            </label>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Walk-in customer</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">
+              Payment method
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className={inputClass}
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">
+                Amount paid
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={String(totals.total)}
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <label className="text-sm font-medium text-zinc-700">
+                {isCreditSale ? "Balance due" : "Change"}
+              </label>
+              <div
+                className={`flex h-9 items-center justify-end rounded-lg px-2.5 text-sm font-semibold ${
+                  isCreditSale
+                    ? "bg-amber-50 text-amber-800"
+                    : "bg-zinc-100 text-zinc-900"
+                }`}
+              >
+                {formatMoney(isCreditSale ? balanceDue : change, currency)}
+              </div>
+            </div>
+          </div>
+
+          {isCreditSale && (
+            <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+              <p className="text-xs font-medium text-amber-900">
+                {formatMoney(balanceDue, currency)} goes on{" "}
+                {customers.find((c) => c.id === customerId)?.name ??
+                  "this account"}
+                &apos;s ledger.
+              </p>
+              <label className="text-xs font-medium text-amber-800">
+                Payable by (optional)
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="mt-1 h-9 w-full rounded-lg border border-amber-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-amber-700"
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">
+              Note (optional)
+            </label>
+            <input
+              type="text"
+              maxLength={300}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. delivery arranged"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        {heldSaleId && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            Recalled from a held bill — completing this sale replaces it.
+          </p>
+        )}
+
+        <button
+          type="button"
+          disabled={isPending || cart.length === 0}
+          onClick={checkout}
+          className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isPending
+            ? "Processing…"
+            : isCreditSale
+              ? `Complete on credit · ${formatMoney(balanceDue, currency)} due`
+              : `Complete sale · ${formatMoney(totals.total, currency)}`}
+        </button>
+
+        <button
+          type="button"
+          disabled={isPending || cart.length === 0}
+          onClick={holdBill}
+          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-sm font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <PauseCircleIcon className="h-4 w-4" />
+          {heldSaleId ? "Update held bill" : "Hold bill"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type CreateSaleInputPaymentMethod =
+  | "CASH"
+  | "CARD"
+  | "BANK_TRANSFER"
+  | "MOBILE"
+  | "OTHER";
