@@ -3,6 +3,7 @@ import { Wrench, Plus } from "lucide-react";
 import { getCurrentUser } from "@/app/lib/auth";
 import { NavLinks, type NavItem } from "@/app/components/nav-links";
 import { UserMenu } from "@/app/components/user-menu";
+import { MobileNav } from "@/app/components/mobile-nav";
 
 export default async function DashboardLayout({
   children,
@@ -89,17 +90,15 @@ export default async function DashboardLayout({
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col bg-zinc-50">
-        {/* Mobile top bar */}
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 lg:hidden print:hidden">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
-              <Wrench className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-semibold text-zinc-900">
-              Hardware POS
-            </span>
-          </Link>
-        </div>
+        {/* Mobile top bar + slide-in menu */}
+        <MobileNav
+          items={navItems}
+          user={{
+            name: user.name ?? "User",
+            email: user.email ?? "",
+            role: user.role,
+          }}
+        />
 
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>

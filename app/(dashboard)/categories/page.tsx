@@ -10,6 +10,7 @@ import {
   renameCategoryAction,
   deleteCategoryAction,
 } from "@/app/actions/categories";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Categories" };
 
@@ -34,8 +35,8 @@ export default async function CategoriesPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Category list */}
         <div className="lg:col-span-2">
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -82,7 +83,10 @@ export default async function CategoriesPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       {category._count.products === 0 ? (
-                        <form action={deleteCategoryAction}>
+                        <ConfirmForm
+                          action={deleteCategoryAction}
+                          message={`Delete the category "${category.name}"?`}
+                        >
                           <input
                             type="hidden"
                             name="id"
@@ -95,7 +99,7 @@ export default async function CategoriesPage() {
                           >
                             <Trash2Icon className="h-4 w-4" />
                           </button>
-                        </form>
+                        </ConfirmForm>
                       ) : (
                         <span
                           className="text-xs text-zinc-300"

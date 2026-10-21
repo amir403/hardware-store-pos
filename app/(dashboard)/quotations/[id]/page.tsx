@@ -7,6 +7,7 @@ import { formatDate, formatDateTime, formatMoney, formatQty, toNum } from "@/app
 import { cancelQuotationAction } from "@/app/actions/quotations";
 import { PrintButton } from "@/app/components/print-button";
 import { ConvertQuotationButton } from "@/app/components/quotations/convert-button";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Quotation" };
 
@@ -50,7 +51,10 @@ export default async function QuotationDetailPage({
         <div className="flex flex-wrap items-start justify-end gap-2">
           <PrintButton />
           {isOpen && (
-            <form action={cancelQuotationAction}>
+            <ConfirmForm
+              action={cancelQuotationAction}
+              message={`Cancel ${quote.quoteNo}? It can no longer be converted to a sale.`}
+            >
               <input type="hidden" name="id" value={quote.id} />
               <button
                 type="submit"
@@ -58,7 +62,7 @@ export default async function QuotationDetailPage({
               >
                 <XIcon className="h-4 w-4" /> Cancel
               </button>
-            </form>
+            </ConfirmForm>
           )}
           {isOpen && <ConvertQuotationButton quotationId={quote.id} />}
         </div>

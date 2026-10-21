@@ -9,6 +9,7 @@ import { getCustomerBalance, invoiceSettlement } from "@/app/lib/ledger";
 import { deletePaymentAction } from "@/app/actions/payments";
 import { PageHeader } from "@/app/components/page-header";
 import { PaymentForm, type OpenInvoice } from "@/app/components/customers/payment-form";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Customer account" };
 
@@ -278,11 +279,11 @@ export default async function CustomerAccountPage({
           )}
 
           {/* Statement */}
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-zinc-900">Account history</h2>
             </div>
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-2.5 font-medium">Date</th>
@@ -345,7 +346,10 @@ export default async function CustomerAccountPage({
                       {row.kind === "PAYMENT" &&
                         canDeletePayments &&
                         row.paymentId && (
-                          <form action={deletePaymentAction}>
+                          <ConfirmForm
+                            action={deletePaymentAction}
+                            message={`Remove this ${formatMoney(row.settlement, currency)} payment? The customer's balance will go back up.`}
+                          >
                             <input
                               type="hidden"
                               name="id"
@@ -358,7 +362,7 @@ export default async function CustomerAccountPage({
                             >
                               <Trash2Icon className="h-4 w-4" />
                             </button>
-                          </form>
+                          </ConfirmForm>
                         )}
                     </td>
                   </tr>

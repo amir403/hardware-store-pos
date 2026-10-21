@@ -19,6 +19,7 @@ import {
 } from "@/app/actions/sales";
 import { createQuotationAction } from "@/app/actions/quotations";
 import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export type PosProduct = {
   id: string;
@@ -492,7 +493,8 @@ export function PosTerminal({
   }, [isPending]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
+    // Bottom padding below xl leaves room for the sticky checkout bar.
+    <div className="grid grid-cols-1 gap-6 pb-24 xl:grid-cols-[1fr_420px] xl:pb-0">
       {/* Left: search + results */}
       <div className="flex min-w-0 flex-col gap-4">
         <div className="relative">
@@ -566,7 +568,7 @@ export function PosTerminal({
         </div>
 
         {/* Cart */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
             <h2 className="text-sm font-semibold text-zinc-900">
               Cart
@@ -590,7 +592,7 @@ export function PosTerminal({
               Scan or click a product to start a sale.
             </div>
           ) : (
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-3 py-2 font-medium">Item</th>
@@ -766,7 +768,10 @@ export function PosTerminal({
                       <RotateCcwIcon className="h-3.5 w-3.5" />
                       Recall
                     </button>
-                    <form action={discardHeldSaleAction}>
+                    <ConfirmForm
+                      action={discardHeldSaleAction}
+                      message={`Discard held bill ${held.invoiceNo} (${formatMoney(held.total, currency)})? It cannot be recovered.`}
+                    >
                       <input type="hidden" name="id" value={held.id} />
                       <button
                         type="submit"
@@ -775,7 +780,7 @@ export function PosTerminal({
                       >
                         <Trash2Icon className="h-3.5 w-3.5" />
                       </button>
-                    </form>
+                    </ConfirmForm>
                   </div>
                 </li>
               ))}
@@ -785,7 +790,10 @@ export function PosTerminal({
       </div>
 
       {/* Right: checkout panel */}
-      <div className="flex h-fit flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 xl:sticky xl:top-6">
+      <div
+        id="pos-checkout"
+        className="flex h-fit scroll-mt-20 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 xl:sticky xl:top-6"
+      >
         <h2 className="text-sm font-semibold text-zinc-900">Checkout</h2>
 
         {error && (
@@ -970,6 +978,38 @@ export function PosTerminal({
           <FileTextIcon className="h-4 w-4" />
           Save as quotation
         </button>
+      </div>
+
+      {/* Below xl the checkout panel sits under the cart, so keep the total
+          and the complete button pinned to the bottom of the screen. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur lg:left-60 xl:hidden print:hidden">
+        {error && (
+          <p className="mb-2 truncate text-xs font-medium text-red-600">{error}</p>
+        )}
+        <div className="flex items-center gap-3">
+          <a href="#pos-checkout" className="min-w-0 flex-1">
+            <p className="text-xs text-zinc-500">
+              {cart.length} item{cart.length === 1 ? "" : "s"} · tap for payment
+              details
+            </p>
+            <p className="truncate text-lg font-semibold text-zinc-900">
+              {formatMoney(totals.total, currency)}
+              {isCreditSale && (
+                <span className="ml-2 text-xs font-medium text-amber-700">
+                  {formatMoney(balanceDue, currency)} on credit
+                </span>
+              )}
+            </p>
+          </a>
+          <button
+            type="button"
+            disabled={isPending || cart.length === 0}
+            onClick={checkout}
+            className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? "Processing…" : "Complete"}
+          </button>
+        </div>
       </div>
     </div>
   );

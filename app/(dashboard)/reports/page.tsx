@@ -602,14 +602,14 @@ export default async function ReportsPage({
 
           <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
             {/* Top products */}
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
                 <ReceiptIcon className="h-4 w-4 text-zinc-400" />
                 <h2 className="text-sm font-semibold text-zinc-900">
                   Top selling products
                 </h2>
               </div>
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                     <th className="px-4 py-2.5 font-medium">Product</th>
@@ -640,13 +640,13 @@ export default async function ReportsPage({
             </div>
 
             {/* Cashier-wise */}
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <div className="border-b border-zinc-100 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">
                   Sales by cashier
                 </h2>
               </div>
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                     <th className="px-4 py-2.5 font-medium">Cashier</th>
@@ -728,13 +728,13 @@ export default async function ReportsPage({
             </div>
 
             {/* Payment mix */}
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
               <div className="border-b border-zinc-100 px-4 py-3">
                 <h2 className="text-sm font-semibold text-zinc-900">
                   How customers paid
                 </h2>
               </div>
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                     <th className="px-4 py-2.5 font-medium">Method</th>

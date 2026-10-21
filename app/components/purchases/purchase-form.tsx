@@ -264,7 +264,7 @@ export function PurchaseForm({
       </div>
 
       {/* Lines */}
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
         <div className="border-b border-zinc-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-zinc-900">
             Purchase items
@@ -279,7 +279,7 @@ export function PurchaseForm({
             Search and add products received in this purchase.
           </div>
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                 <th className="px-4 py-2 font-medium">Product</th>

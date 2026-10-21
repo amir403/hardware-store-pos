@@ -11,6 +11,7 @@ import {
 import { deleteExpenseAction } from "@/app/actions/expenses";
 import { PageHeader } from "@/app/components/page-header";
 import { ExpenseForm } from "@/app/components/expenses/expense-form";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Expenses" };
 
@@ -122,8 +123,8 @@ export default async function ExpensesPage({
             </div>
           )}
 
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-3 font-medium">Date</th>
@@ -166,7 +167,10 @@ export default async function ExpensesPage({
                     </td>
                     <td className="px-4 py-3 text-right">
                       {canDelete && (
-                        <form action={deleteExpenseAction}>
+                        <ConfirmForm
+                          action={deleteExpenseAction}
+                          message={`Remove this ${formatMoney(toNum(expense.amount), currency)} expense?`}
+                        >
                           <input type="hidden" name="id" value={expense.id} />
                           <button
                             type="submit"
@@ -175,7 +179,7 @@ export default async function ExpensesPage({
                           >
                             <Trash2Icon className="h-4 w-4" />
                           </button>
-                        </form>
+                        </ConfirmForm>
                       )}
                     </td>
                   </tr>
