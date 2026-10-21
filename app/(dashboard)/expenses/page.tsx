@@ -169,6 +169,7 @@ export default async function ExpensesPage({
                       {canDelete && (
                         <ConfirmForm
                           action={deleteExpenseAction}
+                          successMessage="Expense removed"
                           message={`Remove this ${formatMoney(toNum(expense.amount), currency)} expense?`}
                         >
                           <input type="hidden" name="id" value={expense.id} />

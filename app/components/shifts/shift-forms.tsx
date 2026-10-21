@@ -7,6 +7,7 @@ import {
   type ShiftResult,
 } from "@/app/actions/shifts";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useSuccessToast } from "@/app/components/toast";
 import { formatMoney, round2 } from "@/app/lib/format";
 
 const inputClass =
@@ -25,7 +26,7 @@ function ErrorNote({ state }: { state: ShiftResult | null }) {
 
 export function OpenShiftForm() {
   const [state, formAction] = useActionState<ShiftResult | null, FormData>(
-    openShiftAction,
+    useSuccessToast<ShiftResult | null>(openShiftAction, "Shift opened — the drawer is counted in"),
     null
   );
 
@@ -78,7 +79,7 @@ export function CloseShiftForm({
 }) {
   const [counted, setCounted] = useState("");
   const [state, formAction] = useActionState<ShiftResult | null, FormData>(
-    closeShiftAction,
+    useSuccessToast<ShiftResult | null>(closeShiftAction, "Shift closed and counted"),
     null
   );
 

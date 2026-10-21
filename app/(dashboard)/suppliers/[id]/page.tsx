@@ -316,6 +316,7 @@ export default async function SupplierAccountPage({
                         row.paymentId && (
                           <ConfirmForm
                             action={deleteSupplierPaymentAction}
+                            successMessage="Payment removed"
                             message={`Remove this ${formatMoney(row.settlement, currency)} payment? What you owe will go back up.`}
                           >
                             <input

@@ -27,7 +27,7 @@ export default async function PosPage({
     }),
     prisma.customer.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, priceTier: true },
+      select: { id: true, name: true, phone: true, priceTier: true },
     }),
     prisma.sale.findMany({
       where: { status: "HELD" },

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeftIcon, CheckCircle2Icon } from "lucide-react";
+import { ArrowLeftIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatMoney, formatDateTime, formatQty, toNum } from "@/app/lib/format";
 import { purchaseSettlement } from "@/app/lib/payables";
 import { PrintButton } from "@/app/components/print-button";
+import { FlashToast } from "@/app/components/toast";
 
 export const metadata = { title: "Purchase detail" };
 
@@ -58,10 +59,10 @@ export default async function PurchaseDetailPage({
       </div>
 
       {isNew && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
-          <CheckCircle2Icon className="h-5 w-5" />
-          Purchase recorded — stock has been updated.
-        </div>
+        <FlashToast
+          message="Purchase recorded — stock updated"
+          clearParams={["new"]}
+        />
       )}
 
       <div className="rounded-xl border border-zinc-200 bg-white p-8 print:border-0 print:shadow-none">

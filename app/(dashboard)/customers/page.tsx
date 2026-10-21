@@ -12,20 +12,31 @@ import {
   deleteCustomerAction,
 } from "@/app/actions/parties";
 import { ConfirmForm } from "@/app/components/confirm-form";
+import { ListSearch } from "@/app/components/list-search";
 
 export const metadata = { title: "Customers" };
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; q?: string }>;
 }) {
   const [settings, params] = await Promise.all([getSettings(), searchParams]);
 
   const editId = params.edit;
+  const q = params.q?.trim() ?? "";
 
   const [customers, editing] = await Promise.all([
     prisma.customer.findMany({
+      where: q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q } },
+              { email: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {},
       orderBy: { name: "asc" },
       include: {
         _count: { select: { sales: true, payments: true } },
@@ -55,12 +66,17 @@ export default async function CustomersPage({
     <>
       <PageHeader
         title="Customers"
-        description={`${customers.length} customer${customers.length === 1 ? "" : "s"} · ${formatMoney(totalReceivable, settings.currency)} outstanding`}
+        description={`${customers.length} customer${customers.length === 1 ? "" : "s"}${q ? ` matching "${q}"` : ""} · ${formatMoney(totalReceivable, settings.currency)} outstanding`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* List */}
         <div className="lg:col-span-2">
+          <ListSearch
+            action="/customers"
+            defaultValue={q}
+            placeholder="Search by name, phone or email…"
+          />
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
@@ -146,6 +162,7 @@ export default async function CustomersPage({
                           customer._count.payments === 0 && (
                             <ConfirmForm
                               action={deleteCustomerAction}
+                              successMessage={`${customer.name} deleted`}
                               message={`Delete customer ${customer.name}? This cannot be undone.`}
                             >
                               <input
@@ -192,6 +209,7 @@ export default async function CustomersPage({
             key={editing?.id ?? "new"}
             action={editing ? updateCustomerAction : createCustomerAction}
             submitLabel={editing ? "Save changes" : "Add customer"}
+            successMessage={editing ? "Customer updated" : "Customer added"}
             showCreditLimit
             defaults={
               editing

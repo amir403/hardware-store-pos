@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSuccessToast } from "@/app/components/toast";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -25,14 +26,20 @@ export function PartyForm({
   defaults,
   submitLabel,
   showCreditLimit = false,
+  successMessage,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   defaults: PartyDefaults;
   submitLabel: string;
   /** Customers can buy on credit; suppliers have no such field. */
   showCreditLimit?: boolean;
+  /** Toast shown after a successful save. */
+  successMessage?: string;
 }) {
-  const [state, formAction] = useActionState(action, {});
+  const [state, formAction] = useActionState(
+    useSuccessToast(action, successMessage),
+    {}
+  );
 
   const fieldError = (field: string) =>
     state?.fieldErrors?.[field]?.[0] as string | undefined;

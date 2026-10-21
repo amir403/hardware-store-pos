@@ -14,13 +14,14 @@ import {
   deleteSupplierAction,
 } from "@/app/actions/parties";
 import { ConfirmForm } from "@/app/components/confirm-form";
+import { ListSearch } from "@/app/components/list-search";
 
 export const metadata = { title: "Suppliers" };
 
 export default async function SuppliersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; q?: string }>;
 }) {
   const [user, params] = await Promise.all([getCurrentUser(), searchParams]);
   if (!hasRole(user, "ADMIN", "MANAGER")) {
@@ -28,10 +29,20 @@ export default async function SuppliersPage({
   }
 
   const editId = params.edit;
+  const q = params.q?.trim() ?? "";
 
   const [settings, suppliers, editing] = await Promise.all([
     getSettings(),
     prisma.supplier.findMany({
+      where: q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q } },
+              { email: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {},
       orderBy: { name: "asc" },
       include: {
         _count: { select: { purchases: true } },
@@ -58,12 +69,17 @@ export default async function SuppliersPage({
     <>
       <PageHeader
         title="Suppliers"
-        description={`${suppliers.length} supplier${suppliers.length === 1 ? "" : "s"} · ${formatMoney(totalPayable, settings.currency)} payable`}
+        description={`${suppliers.length} supplier${suppliers.length === 1 ? "" : "s"}${q ? ` matching "${q}"` : ""} · ${formatMoney(totalPayable, settings.currency)} payable`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* List */}
         <div className="lg:col-span-2">
+          <ListSearch
+            action="/suppliers"
+            defaultValue={q}
+            placeholder="Search by name, phone or email…"
+          />
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
@@ -142,6 +158,7 @@ export default async function SuppliersPage({
                           {supplier._count.purchases === 0 && (
                             <ConfirmForm
                               action={deleteSupplierAction}
+                              successMessage={`${supplier.name} deleted`}
                               message={`Delete supplier ${supplier.name}? This cannot be undone.`}
                             >
                               <input
@@ -188,6 +205,7 @@ export default async function SuppliersPage({
             key={editing?.id ?? "new"}
             action={editing ? updateSupplierAction : createSupplierAction}
             submitLabel={editing ? "Save changes" : "Add supplier"}
+            successMessage={editing ? "Supplier updated" : "Supplier added"}
             defaults={
               editing
                 ? {

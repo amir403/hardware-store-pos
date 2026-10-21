@@ -2,6 +2,7 @@
 
 import { BanIcon } from "lucide-react";
 import { voidSaleAction } from "@/app/actions/sales";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 /**
  * Voids a same-day sale that should never have been keyed. A reason is a
@@ -10,15 +11,13 @@ import { voidSaleAction } from "@/app/actions/sales";
  */
 export function VoidButton({ saleId, invoiceNo }: { saleId: string; invoiceNo: string }) {
   return (
-    <form
+    <ConfirmForm
       action={voidSaleAction}
-      onSubmit={(e) => {
-        const confirmed = window.confirm(
-          `Void ${invoiceNo}? The stock it took out goes straight back on the ` +
-            "shelf and the sale is removed from today's revenue. This cannot be undone."
-        );
-        if (!confirmed) e.preventDefault();
-      }}
+      message={
+        `Void ${invoiceNo}? The stock it took out goes straight back on the ` +
+        "shelf and the sale is removed from today's revenue. This cannot be undone."
+      }
+      successMessage={`${invoiceNo} voided — stock returned`}
       className="flex items-center gap-2 print:hidden"
     >
       <input type="hidden" name="id" value={saleId} />
@@ -39,6 +38,6 @@ export function VoidButton({ saleId, invoiceNo }: { saleId: string; invoiceNo: s
         <BanIcon className="h-4 w-4" />
         Void sale
       </button>
-    </form>
+    </ConfirmForm>
   );
 }

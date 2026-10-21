@@ -8,6 +8,7 @@ import { getReorderPlan, groupBySupplier } from "@/app/lib/reorder";
 import { PageHeader } from "@/app/components/page-header";
 import { SubmitButton } from "@/app/components/submit-button";
 import { adjustStockAction } from "@/app/actions/inventory";
+import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Inventory" };
 
@@ -216,7 +217,11 @@ export default async function InventoryPage() {
               Set the counted quantity — the difference is recorded as an
               adjustment.
             </p>
-            <form action={adjustStockAction} className="flex flex-col gap-3">
+            <ConfirmForm
+              action={adjustStockAction}
+              successMessage="Stock adjusted"
+              className="flex flex-col gap-3"
+            >
               <select
                 name="productId"
                 required
@@ -249,7 +254,7 @@ export default async function InventoryPage() {
                 className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900"
               />
               <SubmitButton>Apply adjustment</SubmitButton>
-            </form>
+            </ConfirmForm>
           </div>
         </div>
       </div>

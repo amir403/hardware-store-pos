@@ -6,6 +6,8 @@ import { getSettings } from "@/app/lib/settings";
 import { formatMoney, formatQty, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 import { toggleProductActiveAction } from "@/app/actions/products";
+import { ConfirmForm } from "@/app/components/confirm-form";
+import { FlashToast } from "@/app/components/toast";
 
 export const metadata = { title: "Products" };
 
@@ -71,11 +73,10 @@ export default async function ProductsPage({
       />
 
       {(params.created || params.updated) && (
-        <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          {params.created
-            ? "Product created successfully."
-            : "Product updated successfully."}
-        </p>
+        <FlashToast
+          message={params.created ? "Product created" : "Product updated"}
+          clearParams={["created", "updated"]}
+        />
       )}
 
       {/* Filters */}
@@ -195,7 +196,14 @@ export default async function ProductsPage({
                           >
                             <PencilIcon className="h-4 w-4" />
                           </Link>
-                          <form action={toggleProductActiveAction}>
+                          <ConfirmForm
+                            action={toggleProductActiveAction}
+                            successMessage={
+                              product.isActive
+                                ? `${product.name} deactivated`
+                                : `${product.name} is active again`
+                            }
+                          >
                             <input
                               type="hidden"
                               name="id"
@@ -208,7 +216,7 @@ export default async function ProductsPage({
                             >
                               {product.isActive ? "Deactivate" : "Activate"}
                             </button>
-                          </form>
+                          </ConfirmForm>
                         </>
                       )}
                     </div>

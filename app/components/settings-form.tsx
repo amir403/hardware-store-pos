@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSuccessToast } from "@/app/components/toast";
 import type { SettingsFormState } from "@/app/actions/settings";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -29,7 +30,10 @@ export function SettingsForm({
   ) => Promise<SettingsFormState>;
   defaults: SettingsDefaults;
 }) {
-  const [state, formAction] = useActionState(action, {});
+  const [state, formAction] = useActionState(
+    useSuccessToast(action, "Settings saved"),
+    {}
+  );
 
   const fieldError = (field: string) =>
     state?.fieldErrors?.[field]?.[0] as string | undefined;
@@ -39,11 +43,6 @@ export function SettingsForm({
       {state?.error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {state.error}
-        </p>
-      )}
-      {state?.savedAt && !state?.error && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Settings saved.
         </p>
       )}
 

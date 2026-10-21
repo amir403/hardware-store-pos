@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon, CheckCircle2Icon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatDateTime, formatMoney, formatQty, toNum } from "@/app/lib/format";
@@ -8,6 +8,7 @@ import { cancelQuotationAction } from "@/app/actions/quotations";
 import { PrintButton } from "@/app/components/print-button";
 import { ConvertQuotationButton } from "@/app/components/quotations/convert-button";
 import { ConfirmForm } from "@/app/components/confirm-form";
+import { FlashToast } from "@/app/components/toast";
 
 export const metadata = { title: "Quotation" };
 
@@ -53,6 +54,7 @@ export default async function QuotationDetailPage({
           {isOpen && (
             <ConfirmForm
               action={cancelQuotationAction}
+              successMessage={`${quote.quoteNo} cancelled`}
               message={`Cancel ${quote.quoteNo}? It can no longer be converted to a sale.`}
             >
               <input type="hidden" name="id" value={quote.id} />
@@ -69,10 +71,10 @@ export default async function QuotationDetailPage({
       </div>
 
       {sp.new === "1" && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
-          <CheckCircle2Icon className="h-5 w-5" />
-          Quotation saved — print it or share it with the customer.
-        </div>
+        <FlashToast
+          message={`${quote.quoteNo} saved — print it or share it with the customer`}
+          clearParams={["new"]}
+        />
       )}
       {expired && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 print:hidden">

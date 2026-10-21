@@ -4,6 +4,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatDateTime, formatMoney, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
+import { ListSearch } from "@/app/components/list-search";
 
 export const metadata = { title: "Quotations" };
 
@@ -24,15 +25,29 @@ const FILTERS = [
 export default async function QuotationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
   const [settings, params] = await Promise.all([getSettings(), searchParams]);
   const status = FILTERS.some((f) => f.value === params.status && f.value !== "")
     ? (params.status as "OPEN" | "CONVERTED" | "CANCELLED")
     : null;
 
+  const q = params.q?.trim() ?? "";
+
   const quotes = await prisma.quotation.findMany({
-    where: status ? { status } : {},
+    where: {
+      ...(status ? { status } : {}),
+      ...(q
+        ? {
+            OR: [
+              { quoteNo: { contains: q, mode: "insensitive" } },
+              { customerName: { contains: q, mode: "insensitive" } },
+              { note: { contains: q, mode: "insensitive" } },
+              { customer: { name: { contains: q, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {
@@ -63,11 +78,21 @@ export default async function QuotationsPage({
         Build the cart at the POS, then press <strong>Save as quotation</strong>.
       </p>
 
+      <ListSearch
+        action="/quotations"
+        defaultValue={q}
+        placeholder="Search by quotation no, customer or note…"
+        keep={{ status: status ?? undefined }}
+      />
+
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Link
             key={f.value}
-            href={f.value ? `/quotations?status=${f.value}` : "/quotations"}
+            href={`/quotations?${new URLSearchParams({
+              ...(f.value ? { status: f.value } : {}),
+              ...(q ? { q } : {}),
+            }).toString()}`}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               (status ?? "") === f.value
                 ? "border-zinc-900 bg-zinc-900 text-white"

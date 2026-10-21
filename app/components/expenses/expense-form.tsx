@@ -3,6 +3,7 @@
 import { useActionState, useRef } from "react";
 import { createExpenseAction, type ExpenseResult } from "@/app/actions/expenses";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useToast } from "@/app/components/toast";
 import { EXPENSE_CATEGORIES, EXPENSE_LABELS } from "@/app/lib/expense-categories";
 
 const inputClass =
@@ -12,13 +13,17 @@ const labelClass = "text-sm font-medium text-zinc-700";
 
 export function ExpenseForm({ today }: { today: string }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const toast = useToast();
 
   async function submit(
     previous: ExpenseResult | null,
     formData: FormData
   ): Promise<ExpenseResult> {
     const result = await createExpenseAction(previous, formData);
-    if ("ok" in result) formRef.current?.reset();
+    if ("ok" in result) {
+      formRef.current?.reset();
+      toast("Expense recorded");
+    }
     return result;
   }
 
@@ -27,18 +32,12 @@ export function ExpenseForm({ today }: { today: string }) {
     null
   );
   const errorMessage = state && "error" in state ? state.error : null;
-  const succeeded = state !== null && "ok" in state;
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-4">
       {errorMessage && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {errorMessage}
-        </p>
-      )}
-      {succeeded && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Expense recorded.
         </p>
       )}
 

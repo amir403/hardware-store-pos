@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -52,14 +53,18 @@ export type NavItem = {
   href: string;
   label: string;
   icon: NavIcon;
+  /** Section heading; consecutive items with the same group sit together. */
+  group?: string;
 };
 
 export function NavLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-1 flex-col gap-1">
-      {items.map((item) => {
+    <nav className="flex flex-1 flex-col gap-0.5">
+      {items.map((item, index) => {
+        const startsGroup =
+          item.group !== undefined && item.group !== items[index - 1]?.group;
         const active =
           item.href === "/"
             ? pathname === "/"
@@ -68,18 +73,24 @@ export function NavLinks({ items }: { items: NavItem[] }) {
         const Icon = icons[item.icon];
 
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              active
-                ? "bg-white/10 text-white"
-                : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-            }`}
-          >
-            <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
-            {item.label}
-          </Link>
+          <Fragment key={item.href}>
+            {startsGroup && (
+              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                {item.group}
+              </p>
+            )}
+            <Link
+              href={item.href}
+              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                active
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+              }`}
+            >
+              <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
+              {item.label}
+            </Link>
+          </Fragment>
         );
       })}
     </nav>

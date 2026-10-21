@@ -7,18 +7,38 @@ import { getSettings } from "@/app/lib/settings";
 import { formatMoney, formatDateTime, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 import { purchaseSettlement } from "@/app/lib/payables";
+import { ListSearch } from "@/app/components/list-search";
 
 export const metadata = { title: "Purchases" };
 
-export default async function PurchasesPage() {
+export default async function PurchasesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!hasRole(user, "ADMIN", "MANAGER")) {
     redirect("/");
   }
 
-  const settings = await getSettings();
+  const [settings, params] = await Promise.all([getSettings(), searchParams]);
+  const q = params.q?.trim() ?? "";
 
   const purchases = await prisma.purchase.findMany({
+    where: q
+      ? {
+          OR: [
+            { referenceNo: { contains: q, mode: "insensitive" } },
+            { note: { contains: q, mode: "insensitive" } },
+            { supplier: { name: { contains: q, mode: "insensitive" } } },
+            {
+              items: {
+                some: { product: { name: { contains: q, mode: "insensitive" } } },
+              },
+            },
+          ],
+        }
+      : {},
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
@@ -33,7 +53,11 @@ export default async function PurchasesPage() {
     <>
       <PageHeader
         title="Purchases"
-        description="Stock intake from suppliers"
+        description={
+          q
+            ? `${purchases.length} purchase${purchases.length === 1 ? "" : "s"} matching "${q}"`
+            : "Stock intake from suppliers"
+        }
         actions={
           <Link
             href="/purchases/new"
@@ -43,6 +67,12 @@ export default async function PurchasesPage() {
             Record purchase
           </Link>
         }
+      />
+
+      <ListSearch
+        action="/purchases"
+        defaultValue={q}
+        placeholder="Search by reference, supplier or product…"
       />
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">

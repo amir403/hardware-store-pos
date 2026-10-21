@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSuccessToast } from "@/app/components/toast";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -9,7 +10,10 @@ export function CategoryForm({
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
 }) {
-  const [state, formAction] = useActionState(action, {});
+  const [state, formAction] = useActionState(
+    useSuccessToast(action, "Category added"),
+    {}
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-3">

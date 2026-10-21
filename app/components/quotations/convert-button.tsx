@@ -4,12 +4,14 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ShoppingCartIcon } from "lucide-react";
 import { convertQuotationAction } from "@/app/actions/quotations";
+import { useToast } from "@/app/components/toast";
 
 /** Turns the quote into a held bill and opens it at the POS. */
 export function ConvertQuotationButton({ quotationId }: { quotationId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -24,6 +26,7 @@ export function ConvertQuotationButton({ quotationId }: { quotationId: string })
               setError(result.error);
               return;
             }
+            toast("Quotation converted — complete the sale at the POS");
             router.push(`/pos?recall=${result.heldSaleId}`);
           })
         }

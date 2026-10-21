@@ -6,6 +6,7 @@ import {
   type SupplierPaymentResult,
 } from "@/app/actions/supplier-payments";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useToast } from "@/app/components/toast";
 import { formatMoney } from "@/app/lib/format";
 
 export type OpenPurchase = {
@@ -42,6 +43,7 @@ export function SupplierPaymentForm({
 
   const selected = purchases.find((p) => p.id === purchaseId) ?? null;
   const amount = amountDraft ?? (selected ? String(selected.due) : "");
+  const toast = useToast();
 
   async function submit(
     previous: SupplierPaymentResult | null,
@@ -49,6 +51,9 @@ export function SupplierPaymentForm({
   ): Promise<SupplierPaymentResult> {
     const result = await paySupplierAction(previous, formData);
     if ("ok" in result) {
+      toast(
+        `${formatMoney(Number(formData.get("amount")) || 0, currency)} paid to ${supplierName}`
+      );
       setPurchaseId("");
       setAmountDraft(null);
     }
@@ -61,7 +66,6 @@ export function SupplierPaymentForm({
   >(submit, null);
 
   const errorMessage = state && "error" in state ? state.error : null;
-  const succeeded = state !== null && "ok" in state;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -70,11 +74,6 @@ export function SupplierPaymentForm({
       {errorMessage && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {errorMessage}
-        </p>
-      )}
-      {succeeded && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Payment to {supplierName} recorded.
         </p>
       )}
 

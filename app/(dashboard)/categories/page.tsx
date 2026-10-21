@@ -58,8 +58,9 @@ export default async function CategoriesPage() {
                 {categories.map((category) => (
                   <tr key={category.id} className="hover:bg-zinc-50">
                     <td className="px-4 py-2.5">
-                      <form
+                      <ConfirmForm
                         action={renameCategoryAction}
+                        successMessage="Category renamed"
                         className="flex items-center gap-2"
                       >
                         <input type="hidden" name="id" value={category.id} />
@@ -76,7 +77,7 @@ export default async function CategoriesPage() {
                         >
                           Save
                         </SubmitButton>
-                      </form>
+                      </ConfirmForm>
                     </td>
                     <td className="px-4 py-2.5 text-right text-zinc-600">
                       {category._count.products}
@@ -85,6 +86,7 @@ export default async function CategoriesPage() {
                       {category._count.products === 0 ? (
                         <ConfirmForm
                           action={deleteCategoryAction}
+                          successMessage={`Category "${category.name}" deleted`}
                           message={`Delete the category "${category.name}"?`}
                         >
                           <input

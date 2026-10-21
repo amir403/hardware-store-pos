@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSuccessToast } from "@/app/components/toast";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -32,8 +33,11 @@ export function UserForm({
   defaults: UserDefaults;
   submitLabel: string;
 }) {
-  const [state, formAction] = useActionState(action, {});
   const isEdit = Boolean(defaults.id);
+  const [state, formAction] = useActionState(
+    useSuccessToast(action, isEdit ? "User updated" : "User added"),
+    {}
+  );
 
   const fieldError = (field: string) =>
     state?.fieldErrors?.[field]?.[0] as string | undefined;

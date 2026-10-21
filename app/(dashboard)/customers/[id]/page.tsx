@@ -348,6 +348,7 @@ export default async function CustomerAccountPage({
                         row.paymentId && (
                           <ConfirmForm
                             action={deletePaymentAction}
+                            successMessage="Payment removed"
                             message={`Remove this ${formatMoney(row.settlement, currency)} payment? The customer's balance will go back up.`}
                           >
                             <input

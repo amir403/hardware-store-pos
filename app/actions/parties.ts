@@ -225,3 +225,63 @@ export async function deleteSupplierAction(formData: FormData) {
   await prisma.supplier.delete({ where: { id } });
   revalidatePath("/suppliers");
 }
+
+export type QuickCustomer = {
+  id: string;
+  name: string;
+  phone: string | null;
+  priceTier: "RETAIL" | "WHOLESALE";
+};
+
+export type QuickCustomerResult = { customer: QuickCustomer } | { error: string };
+
+const quickCustomerSchema = z.object({
+  name: partyFields.name,
+  phone: partyFields.phone,
+  priceTier: z.enum(["RETAIL", "WHOLESALE"]).default("RETAIL"),
+});
+
+/**
+ * Add a customer from the POS without leaving the sale: just a name, an
+ * optional phone and the price tier. Everything else can be filled in later on
+ * the Customers page.
+ */
+export async function quickCreateCustomerAction(input: {
+  name: string;
+  phone?: string;
+  priceTier?: "RETAIL" | "WHOLESALE";
+}): Promise<QuickCustomerResult> {
+  await getActionUser();
+
+  const parsed = quickCustomerSchema.safeParse({
+    name: input.name,
+    phone: input.phone ?? "",
+    priceTier: input.priceTier,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid customer." };
+  }
+  const data = parsed.data;
+
+  if (data.phone) {
+    const existing = await prisma.customer.findUnique({
+      where: { phone: data.phone },
+      select: { name: true },
+    });
+    if (existing) {
+      return { error: `${data.phone} already belongs to ${existing.name}.` };
+    }
+  }
+
+  try {
+    const customer = await prisma.customer.create({
+      data: { name: data.name, phone: data.phone, priceTier: data.priceTier },
+      select: { id: true, name: true, phone: true, priceTier: true },
+    });
+    revalidatePath("/customers");
+    return { customer };
+  } catch (error) {
+    console.error("quickCreateCustomer failed:", error);
+    return { error: "Failed to add the customer." };
+  }
+}

@@ -18,6 +18,8 @@ import {
   discardHeldSaleAction,
 } from "@/app/actions/sales";
 import { createQuotationAction } from "@/app/actions/quotations";
+import { useToast } from "@/app/components/toast";
+import { CustomerPicker } from "@/app/components/pos/customer-picker";
 import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 
@@ -39,8 +41,14 @@ export type PosProduct = {
 export type PosCustomer = {
   id: string;
   name: string;
+  phone: string | null;
   priceTier: "RETAIL" | "WHOLESALE";
 };
+
+/** Products shown before the cashier types or picks a category. */
+const DEFAULT_RESULTS = 12;
+/** Upper bound once a search or category narrows the list. */
+const FILTERED_RESULTS = 40;
 
 export type PosHeldSaleLine = {
   productId: string;
@@ -112,6 +120,7 @@ export function PosTerminal({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   /** Cart lines for a parked bill, re-reading live product data. */
   function linesFromHeld(held: PosHeldSale): CartLine[] {
@@ -139,6 +148,9 @@ export function PosTerminal({
     : null;
 
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  /** Starts from the server list; customers added at the POS join it here. */
+  const [customerList, setCustomerList] = useState(customers);
   const [cart, setCart] = useState<CartLine[]>(() =>
     initialHeld ? linesFromHeld(initialHeld) : []
   );
@@ -160,18 +172,27 @@ export function PosTerminal({
   );
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const categories = useMemo(
+    () =>
+      [...new Set(products.map((p) => p.categoryName).filter((c): c is string => !!c))].sort(),
+    [products]
+  );
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products.slice(0, 8);
-    return products
+    const pool = category
+      ? products.filter((p) => p.categoryName === category)
+      : products;
+    if (!q) return pool.slice(0, category ? FILTERED_RESULTS : DEFAULT_RESULTS);
+    return pool
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           (p.sku && p.sku.toLowerCase().includes(q)) ||
           (p.barcode && p.barcode.toLowerCase().includes(q))
       )
-      .slice(0, 8);
-  }, [products, query]);
+      .slice(0, FILTERED_RESULTS);
+  }, [products, query, category]);
 
   const totals = useMemo(() => {
     let subtotal = 0;
@@ -197,7 +218,7 @@ export function PosTerminal({
   }, [cart, discountAmount, pricesIncludeTax]);
 
   const isWholesale =
-    customers.find((c) => c.id === customerId)?.priceTier === "WHOLESALE";
+    customerList.find((c) => c.id === customerId)?.priceTier === "WHOLESALE";
 
   /** The rate a product rings up at for the customer on the bill. */
   function priceFor(product: PosProduct, wholesale: boolean): number {
@@ -210,20 +231,23 @@ export function PosTerminal({
    * Switching between a retail and a wholesale customer re-prices the lines
    * still at a list price; a price the cashier typed in by hand is kept.
    */
+  function applyTier(nextWholesale: boolean) {
+    if (nextWholesale === isWholesale) return;
+    setCart((prev) =>
+      prev.map((line) => {
+        const product = products.find((p) => p.id === line.productId);
+        if (!product || line.unitPrice !== priceFor(product, isWholesale)) {
+          return line;
+        }
+        return { ...line, unitPrice: priceFor(product, nextWholesale) };
+      })
+    );
+  }
+
   function changeCustomer(nextId: string) {
-    const nextWholesale =
-      customers.find((c) => c.id === nextId)?.priceTier === "WHOLESALE";
-    if (nextWholesale !== isWholesale) {
-      setCart((prev) =>
-        prev.map((line) => {
-          const product = products.find((p) => p.id === line.productId);
-          if (!product || line.unitPrice !== priceFor(product, isWholesale)) {
-            return line;
-          }
-          return { ...line, unitPrice: priceFor(product, nextWholesale) };
-        })
-      );
-    }
+    applyTier(
+      customerList.find((c) => c.id === nextId)?.priceTier === "WHOLESALE"
+    );
     setCustomerId(nextId);
   }
 
@@ -347,6 +371,11 @@ export function PosTerminal({
       }
 
       clearCart();
+      toast(
+        heldSaleId
+          ? `Held bill ${result.invoiceNo} updated`
+          : `Bill parked as ${result.invoiceNo}`
+      );
       router.refresh();
     });
   }
@@ -361,6 +390,7 @@ export function PosTerminal({
     setNote(held.note ?? "");
     setPaidAmount("");
     setHeldSaleId(held.id);
+    toast(`${held.invoiceNo} loaded into the cart`, "info");
     searchRef.current?.focus();
   }
 
@@ -522,6 +552,25 @@ export function PosTerminal({
             </span>
           ))}
         </div>
+
+        {categories.length > 0 && (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            {["", ...categories].map((c) => (
+              <button
+                key={c || "all"}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  category === c
+                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
+                }`}
+              >
+                {c || "All"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {results.map((product) => {
@@ -770,6 +819,7 @@ export function PosTerminal({
                     </button>
                     <ConfirmForm
                       action={discardHeldSaleAction}
+                      successMessage={`Held bill ${held.invoiceNo} discarded`}
                       message={`Discard held bill ${held.invoiceNo} (${formatMoney(held.total, currency)})? It cannot be recovered.`}
                     >
                       <input type="hidden" name="id" value={held.id} />
@@ -837,19 +887,20 @@ export function PosTerminal({
             <label className="text-sm font-medium text-zinc-700">
               Customer
             </label>
-            <select
+            <CustomerPicker
+              customers={customerList}
               value={customerId}
-              onChange={(e) => changeCustomer(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Walk-in customer</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.priceTier === "WHOLESALE" ? " (wholesale)" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={changeCustomer}
+              onCreated={(customer) => {
+                setCustomerList((prev) =>
+                  [...prev, customer].sort((a, b) => a.name.localeCompare(b.name))
+                );
+                // A brand-new customer is not in the list `changeCustomer`
+                // reads yet, so apply their tier directly.
+                applyTier(customer.priceTier === "WHOLESALE");
+                setCustomerId(customer.id);
+              }}
+            />
             {isWholesale && (
               <p className="text-xs font-medium text-sky-700">
                 Wholesale prices applied.
@@ -909,7 +960,7 @@ export function PosTerminal({
             <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
               <p className="text-xs font-medium text-amber-900">
                 {formatMoney(balanceDue, currency)} goes on{" "}
-                {customers.find((c) => c.id === customerId)?.name ??
+                {customerList.find((c) => c.id === customerId)?.name ??
                   "this account"}
                 &apos;s ledger.
               </p>

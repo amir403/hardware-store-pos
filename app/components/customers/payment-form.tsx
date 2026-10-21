@@ -6,6 +6,7 @@ import {
   type PaymentResult,
 } from "@/app/actions/payments";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useToast } from "@/app/components/toast";
 import { formatMoney } from "@/app/lib/format";
 
 export type OpenInvoice = {
@@ -44,6 +45,7 @@ export function PaymentForm({
   // Picking an invoice adopts its remaining balance; editing the amount box
   // overrides it for a part payment. Derived during render, no effect needed.
   const amount = amountDraft ?? (selected ? String(selected.due) : "");
+  const toast = useToast();
 
   async function submit(
     _previous: PaymentResult | null,
@@ -52,6 +54,9 @@ export function PaymentForm({
     const result = await receivePaymentAction(_previous, formData);
     // Start blank again for the next customer at the counter.
     if ("ok" in result) {
+      toast(
+        `${formatMoney(Number(formData.get("amount")) || 0, currency)} received from ${customerName}`
+      );
       setSaleId("");
       setAmountDraft(null);
     }
@@ -65,7 +70,6 @@ export function PaymentForm({
 
   // PaymentResult is a union, so each arm has to be narrowed before reading it.
   const errorMessage = state && "error" in state ? state.error : null;
-  const succeeded = state !== null && "ok" in state;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -74,11 +78,6 @@ export function PaymentForm({
       {errorMessage && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {errorMessage}
-        </p>
-      )}
-      {succeeded && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Payment received on {customerName}&apos;s account.
         </p>
       )}
 

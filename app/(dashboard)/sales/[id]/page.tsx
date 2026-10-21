@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeftIcon,
   BanIcon,
-  CheckCircle2Icon,
   PackageOpenIcon,
   PauseCircleIcon,
   Undo2Icon,
@@ -23,6 +22,7 @@ import { invoiceSettlement } from "@/app/lib/ledger";
 import { PrintButton } from "@/app/components/print-button";
 import { RefundButton } from "@/app/components/sales/refund-button";
 import { VoidButton } from "@/app/components/sales/void-button";
+import { FlashToast } from "@/app/components/toast";
 
 export const metadata = { title: "Sale detail" };
 
@@ -172,17 +172,16 @@ export default async function SaleDetailPage({
       </div>
 
       {isNew && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
-          <CheckCircle2Icon className="h-5 w-5" />
-          Sale completed successfully — stock has been updated.
-        </div>
+        <FlashToast
+          message={`${sale.invoiceNo} completed — stock updated`}
+          clearParams={["new"]}
+        />
       )}
-
       {justReturned && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 print:hidden">
-          <CheckCircle2Icon className="h-5 w-5" />
-          Return {justReturned} recorded — the items are back in stock.
-        </div>
+        <FlashToast
+          message={`Return ${justReturned} recorded — items are back in stock`}
+          clearParams={["returned"]}
+        />
       )}
 
       {sale.status === "HELD" && (

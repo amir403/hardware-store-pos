@@ -65,7 +65,9 @@ export async function renameCategoryAction(formData: FormData) {
   const existing = await prisma.category.findFirst({
     where: { name, NOT: { id } },
   });
-  if (existing) return;
+  if (existing) {
+    throw new Error(`A category named "${name}" already exists.`);
+  }
 
   await prisma.category.update({ where: { id }, data: { name } });
   revalidatePath("/categories");
