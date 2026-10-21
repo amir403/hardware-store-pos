@@ -202,6 +202,7 @@ export default async function CustomersPage({
                       editing.creditLimit === null
                         ? ""
                         : String(toNum(editing.creditLimit)),
+                    priceTier: editing.priceTier,
                   }
                 : {
                     name: "",

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
+import { recordAudit } from "@/app/lib/audit";
 import { round2 } from "@/app/lib/format";
 import type { FormState } from "@/app/actions/products";
 
@@ -72,6 +73,14 @@ export async function updateSettingsAction(
       where: { id: "main" },
       update: data,
       create: { id: "main", ...data },
+    });
+    await recordAudit({
+      userId: user.id,
+      action: "settings.update",
+      entityType: "Settings",
+      entityId: "main",
+      summary: "Store settings saved",
+      details: data,
     });
   } catch (error) {
     console.error("updateSettings failed:", error);

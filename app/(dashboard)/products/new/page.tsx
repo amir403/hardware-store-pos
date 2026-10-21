@@ -46,6 +46,7 @@ export default async function NewProductPage() {
             categoryId: "",
             costPrice: "0",
             price: "",
+            wholesalePrice: "",
             taxRate: "0",
             stockQty: "0",
             reorderLevel: "0",

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
+import { recordAudit } from "@/app/lib/audit";
 import type { FormState } from "@/app/actions/products";
 
 const ROLES = ["ADMIN", "MANAGER", "CASHIER"] as const;
@@ -57,13 +58,21 @@ export async function createUserAction(
   }
 
   try {
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email,
         hashedPassword: await bcrypt.hash(data.password, 10),
         role: data.role,
       },
+    });
+    await recordAudit({
+      userId: user.id,
+      action: "user.create",
+      entityType: "User",
+      entityId: created.id,
+      summary: `Created ${data.email} as ${data.role}`,
+      details: { email: data.email, role: data.role },
     });
   } catch (error) {
     console.error("createUser failed:", error);
@@ -132,6 +141,12 @@ export async function updateUserAction(
     return { fieldErrors: { email: ["This email is already registered."] } };
   }
 
+  const before = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, role: true, isActive: true },
+  });
+  if (!before) return { error: "That user no longer exists." };
+
   try {
     await prisma.user.update({
       where: { id },
@@ -145,6 +160,24 @@ export async function updateUserAction(
           : {}),
       },
     });
+
+    // Only the changes that matter for access control are worth a line.
+    const changes: string[] = [];
+    if (before.role !== data.role) changes.push(`role ${before.role} → ${data.role}`);
+    if (before.isActive !== data.isActive)
+      changes.push(data.isActive ? "reactivated" : "deactivated");
+    if (before.email !== data.email) changes.push(`email → ${data.email}`);
+    if (data.password) changes.push("password reset");
+    if (changes.length > 0) {
+      await recordAudit({
+        userId: user.id,
+        action: "user.update",
+        entityType: "User",
+        entityId: id,
+        summary: `${before.email}: ${changes.join(", ")}`,
+        details: { changes },
+      });
+    }
   } catch (error) {
     console.error("updateUser failed:", error);
     return { error: "Failed to update the user." };

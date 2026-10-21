@@ -17,6 +17,7 @@ type ProductDefaults = {
   categoryId: string;
   costPrice: string;
   price: string;
+  wholesalePrice: string;
   taxRate: string;
   stockQty: string;
   reorderLevel: string;
@@ -180,6 +181,28 @@ export function ProductForm({
           />
           {fieldError("price") && (
             <p className="text-xs text-red-600">{fieldError("price")}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="wholesalePrice" className={labelClass}>
+            Wholesale price
+          </label>
+          <input
+            id="wholesalePrice"
+            name="wholesalePrice"
+            type="number"
+            step="0.01"
+            min="0.01"
+            defaultValue={defaults.wholesalePrice}
+            placeholder="Same as selling price"
+            className={inputClass}
+          />
+          <p className="text-xs text-zinc-400">
+            Charged to wholesale customers at the POS.
+          </p>
+          {fieldError("wholesalePrice") && (
+            <p className="text-xs text-red-600">{fieldError("wholesalePrice")}</p>
           )}
         </div>
 

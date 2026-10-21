@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
+import { toNum } from "@/app/lib/format";
+import { recordAudit } from "@/app/lib/audit";
 
 export type FormState = {
   error?: string;
@@ -35,6 +37,10 @@ const productSchema = z.object({
     .transform((v) => (v === "" || v === "none" ? null : v)),
   costPrice: z.coerce.number().min(0).max(99_999_999).default(0),
   price: z.coerce.number().min(0.01, "Price must be greater than 0").max(99_999_999),
+  /** Blank means wholesale customers pay the normal price. */
+  wholesalePrice: z
+    .union([z.literal(""), z.coerce.number().min(0.01).max(99_999_999)])
+    .transform((v) => (v === "" ? null : v)),
   taxRate: z.coerce.number().min(0).max(100).default(0),
   stockQty: z.coerce.number().min(0).max(9_999_999).default(0),
   reorderLevel: z.coerce.number().min(0).max(9_999_999).default(0),
@@ -61,6 +67,7 @@ export async function createProductAction(
     categoryId: formData.get("categoryId") ?? "",
     costPrice: formData.get("costPrice") ?? 0,
     price: formData.get("price"),
+    wholesalePrice: formData.get("wholesalePrice") ?? "",
     taxRate: formData.get("taxRate") ?? 0,
     stockQty: formData.get("stockQty") ?? 0,
     reorderLevel: formData.get("reorderLevel") ?? 0,
@@ -103,6 +110,7 @@ export async function createProductAction(
         unit: UNITS.includes(data.unit) ? data.unit : "pcs",
         costPrice: data.costPrice,
         price: data.price,
+        wholesalePrice: data.wholesalePrice,
         taxRate: data.taxRate,
         stockQty: data.trackStock ? data.stockQty : 0,
         reorderLevel: data.trackStock ? data.reorderLevel : null,
@@ -141,6 +149,7 @@ export async function updateProductAction(
     categoryId: formData.get("categoryId") ?? "",
     costPrice: formData.get("costPrice") ?? 0,
     price: formData.get("price"),
+    wholesalePrice: formData.get("wholesalePrice") ?? "",
     taxRate: formData.get("taxRate") ?? 0,
     stockQty: formData.get("stockQty") ?? 0,
     reorderLevel: formData.get("reorderLevel") ?? 0,
@@ -175,6 +184,12 @@ export async function updateProductAction(
     }
   }
 
+  const before = await prisma.product.findUnique({
+    where: { id },
+    select: { name: true, price: true, costPrice: true, wholesalePrice: true },
+  });
+  if (!before) return { error: "That product no longer exists." };
+
   try {
     await prisma.product.update({
       where: { id },
@@ -186,12 +201,35 @@ export async function updateProductAction(
         unit: UNITS.includes(data.unit) ? data.unit : "pcs",
         costPrice: data.costPrice,
         price: data.price,
+        wholesalePrice: data.wholesalePrice,
         taxRate: data.taxRate,
         reorderLevel: data.trackStock ? data.reorderLevel : null,
         trackStock: data.trackStock,
         categoryId: data.categoryId,
       },
     });
+
+    // Price changes are where margin quietly leaks, so each one is logged.
+    const changes: string[] = [];
+    const was = {
+      price: toNum(before.price),
+      cost: toNum(before.costPrice),
+      wholesale: before.wholesalePrice === null ? null : toNum(before.wholesalePrice),
+    };
+    if (was.price !== data.price) changes.push(`price ${was.price} → ${data.price}`);
+    if (was.cost !== data.costPrice) changes.push(`cost ${was.cost} → ${data.costPrice}`);
+    if (was.wholesale !== data.wholesalePrice)
+      changes.push(`wholesale ${was.wholesale ?? "—"} → ${data.wholesalePrice ?? "—"}`);
+    if (changes.length > 0) {
+      await recordAudit({
+        userId: user.id,
+        action: "product.price",
+        entityType: "Product",
+        entityId: id,
+        summary: `${data.name}: ${changes.join(", ")}`,
+        details: { before: was, after: { price: data.price, cost: data.costPrice, wholesale: data.wholesalePrice } },
+      });
+    }
   } catch (error) {
     console.error("updateProduct failed:", error);
     return { error: "Failed to update the product. Please try again." };

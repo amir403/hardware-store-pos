@@ -10,12 +10,14 @@ import {
   BarcodeIcon,
   PauseCircleIcon,
   RotateCcwIcon,
+  FileTextIcon,
 } from "lucide-react";
 import {
   createSaleAction,
   holdSaleAction,
   discardHeldSaleAction,
 } from "@/app/actions/sales";
+import { createQuotationAction } from "@/app/actions/quotations";
 import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 
 export type PosProduct = {
@@ -24,6 +26,8 @@ export type PosProduct = {
   sku: string | null;
   barcode: string | null;
   price: number;
+  /** Charged instead of `price` to WHOLESALE customers; null = no special rate. */
+  wholesalePrice: number | null;
   taxRate: number;
   stockQty: number;
   unit: string;
@@ -31,7 +35,11 @@ export type PosProduct = {
   categoryName: string | null;
 };
 
-export type PosCustomer = { id: string; name: string };
+export type PosCustomer = {
+  id: string;
+  name: string;
+  priceTier: "RETAIL" | "WHOLESALE";
+};
 
 export type PosHeldSaleLine = {
   productId: string;
@@ -91,28 +99,64 @@ export function PosTerminal({
   currency,
   pricesIncludeTax,
   heldSales,
+  initialHeldId = null,
 }: {
   products: PosProduct[];
   customers: PosCustomer[];
   currency: string;
   pricesIncludeTax: boolean;
   heldSales: PosHeldSale[];
+  /** A held bill to open straight into the cart, e.g. a converted quotation. */
+  initialHeldId?: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  /** Cart lines for a parked bill, re-reading live product data. */
+  function linesFromHeld(held: PosHeldSale): CartLine[] {
+    return held.lines.map((item) => {
+      const product = products.find((p) => p.id === item.productId);
+      return {
+        productId: item.productId,
+        // Fall back to the snapshot if the product has since been removed.
+        name: product?.name ?? item.productName,
+        unit: product?.unit ?? "pcs",
+        unitPrice: item.unitPrice,
+        taxRate: product?.taxRate ?? 0,
+        trackStock: product?.trackStock ?? false,
+        stockQty: product?.stockQty ?? 0,
+        quantity: item.quantity,
+        discount: item.discount,
+      };
+    });
+  }
+
+  // Opened from a converted quotation: start with that bill already recalled.
+  // Read once on mount via lazy initialisers, so no effect is needed.
+  const initialHeld = initialHeldId
+    ? (heldSales.find((h) => h.id === initialHeldId) ?? null)
+    : null;
+
   const [query, setQuery] = useState("");
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [customerId, setCustomerId] = useState("");
-  const [discountAmount, setDiscountAmount] = useState("0");
+  const [cart, setCart] = useState<CartLine[]>(() =>
+    initialHeld ? linesFromHeld(initialHeld) : []
+  );
+  const [customerId, setCustomerId] = useState(
+    () => initialHeld?.customerId ?? ""
+  );
+  const [discountAmount, setDiscountAmount] = useState(() =>
+    String(initialHeld?.discountAmount ?? 0)
+  );
   const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
   const [paidAmount, setPaidAmount] = useState("");
   /** Only used when the customer is paying part of the bill on credit. */
   const [dueDate, setDueDate] = useState("");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(() => initialHeld?.note ?? "");
   const [error, setError] = useState<string | null>(null);
   /** Set when a parked bill has been recalled into this cart. */
-  const [heldSaleId, setHeldSaleId] = useState<string | null>(null);
+  const [heldSaleId, setHeldSaleId] = useState<string | null>(
+    () => initialHeld?.id ?? null
+  );
   const searchRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo(() => {
@@ -151,6 +195,37 @@ export function PosTerminal({
     return { subtotal, taxAmount, discount, total };
   }, [cart, discountAmount, pricesIncludeTax]);
 
+  const isWholesale =
+    customers.find((c) => c.id === customerId)?.priceTier === "WHOLESALE";
+
+  /** The rate a product rings up at for the customer on the bill. */
+  function priceFor(product: PosProduct, wholesale: boolean): number {
+    return wholesale && product.wholesalePrice !== null
+      ? product.wholesalePrice
+      : product.price;
+  }
+
+  /**
+   * Switching between a retail and a wholesale customer re-prices the lines
+   * still at a list price; a price the cashier typed in by hand is kept.
+   */
+  function changeCustomer(nextId: string) {
+    const nextWholesale =
+      customers.find((c) => c.id === nextId)?.priceTier === "WHOLESALE";
+    if (nextWholesale !== isWholesale) {
+      setCart((prev) =>
+        prev.map((line) => {
+          const product = products.find((p) => p.id === line.productId);
+          if (!product || line.unitPrice !== priceFor(product, isWholesale)) {
+            return line;
+          }
+          return { ...line, unitPrice: priceFor(product, nextWholesale) };
+        })
+      );
+    }
+    setCustomerId(nextId);
+  }
+
   const paid = paidAmount === "" ? totals.total : Number(paidAmount) || 0;
   const change = round2(Math.max(0, paid - totals.total));
   /** Anything not paid at the counter goes onto the customer's account. */
@@ -172,7 +247,7 @@ export function PosTerminal({
           productId: product.id,
           name: product.name,
           unit: product.unit,
-          unitPrice: product.price,
+          unitPrice: priceFor(product, isWholesale),
           taxRate: product.taxRate,
           trackStock: product.trackStock,
           stockQty: product.stockQty,
@@ -279,29 +354,42 @@ export function PosTerminal({
   function recall(held: PosHeldSale) {
     setError(null);
 
-    const lines: CartLine[] = held.lines.map((item) => {
-      const product = products.find((p) => p.id === item.productId);
-      return {
-        productId: item.productId,
-        // Fall back to the snapshot if the product has since been removed.
-        name: product?.name ?? item.productName,
-        unit: product?.unit ?? "pcs",
-        unitPrice: item.unitPrice,
-        taxRate: product?.taxRate ?? 0,
-        trackStock: product?.trackStock ?? false,
-        stockQty: product?.stockQty ?? 0,
-        quantity: item.quantity,
-        discount: item.discount,
-      };
-    });
-
-    setCart(lines);
+    setCart(linesFromHeld(held));
     setCustomerId(held.customerId ?? "");
     setDiscountAmount(String(held.discountAmount || 0));
     setNote(held.note ?? "");
     setPaidAmount("");
     setHeldSaleId(held.id);
     searchRef.current?.focus();
+  }
+
+  /** Save the cart as a printable estimate; nothing is reserved or charged. */
+  function saveQuotation() {
+    setError(null);
+    if (cart.length === 0) {
+      setError("The cart is empty.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await createQuotationAction({
+        items: cart.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          discount: l.discount,
+        })),
+        customerId: customerId || null,
+        discountAmount: Number(discountAmount) || 0,
+        note: note || null,
+      });
+
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      router.push(`/quotations/${result.quotationId}?new=1`);
+    });
   }
 
   function checkout() {
@@ -458,7 +546,7 @@ export function PosTerminal({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-semibold text-zinc-900">
-                    {formatMoney(product.price, currency)}
+                    {formatMoney(priceFor(product, isWholesale), currency)}
                   </p>
                   {inCart && (
                     <p className="text-[11px] font-medium text-emerald-600">
@@ -743,16 +831,22 @@ export function PosTerminal({
             </label>
             <select
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={(e) => changeCustomer(e.target.value)}
               className={inputClass}
             >
               <option value="">Walk-in customer</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                  {c.priceTier === "WHOLESALE" ? " (wholesale)" : ""}
                 </option>
               ))}
             </select>
+            {isWholesale && (
+              <p className="text-xs font-medium text-sky-700">
+                Wholesale prices applied.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -865,6 +959,16 @@ export function PosTerminal({
         >
           <PauseCircleIcon className="h-4 w-4" />
           {heldSaleId ? "Update held bill" : "Hold bill"}
+        </button>
+
+        <button
+          type="button"
+          disabled={isPending || cart.length === 0}
+          onClick={saveQuotation}
+          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <FileTextIcon className="h-4 w-4" />
+          Save as quotation
         </button>
       </div>
     </div>

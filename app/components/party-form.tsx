@@ -12,6 +12,7 @@ export type PartyDefaults = {
   address: string;
   notes: string;
   creditLimit?: string;
+  priceTier?: "RETAIL" | "WHOLESALE";
 };
 
 const inputClass =
@@ -121,6 +122,24 @@ export function PartyForm({
             <p className="text-xs text-red-600">{fieldError("creditLimit")}</p>
           )}
         </div>
+      )}
+
+      {showCreditLimit && (
+        <label className="flex items-start gap-2 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            name="priceTier"
+            value="WHOLESALE"
+            defaultChecked={defaults.priceTier === "WHOLESALE"}
+            className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+          />
+          <span>
+            Wholesale customer
+            <span className="block text-xs text-zinc-400">
+              The POS charges wholesale prices where a product has one.
+            </span>
+          </span>
+        </label>
       )}
 
       <div className="flex flex-col gap-1.5">

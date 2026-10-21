@@ -41,6 +41,7 @@ const customerSchema = z.object({
       z.coerce.number().min(0, "Credit limit cannot be negative.").max(99_999_999),
     ])
     .transform((v) => (v === "" || v === null ? null : v)),
+  priceTier: z.enum(["RETAIL", "WHOLESALE"]).default("RETAIL"),
 });
 
 const supplierSchema = z.object(partyFields);
@@ -65,6 +66,7 @@ export async function createCustomerAction(
   const parsed = customerSchema.safeParse({
     ...partyInput(formData),
     creditLimit: formData.get("creditLimit") ?? "",
+    priceTier: formData.get("priceTier") === "WHOLESALE" ? "WHOLESALE" : "RETAIL",
   });
 
   if (!parsed.success) {
@@ -106,6 +108,7 @@ export async function updateCustomerAction(
   const parsed = customerSchema.safeParse({
     ...partyInput(formData),
     creditLimit: formData.get("creditLimit") ?? "",
+    priceTier: formData.get("priceTier") === "WHOLESALE" ? "WHOLESALE" : "RETAIL",
   });
 
   if (!parsed.success) {

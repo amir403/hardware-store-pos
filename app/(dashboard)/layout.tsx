@@ -16,6 +16,9 @@ export default async function DashboardLayout({
     { href: "/", label: "Dashboard", icon: "dashboard" },
     { href: "/pos", label: "New Sale", icon: "pos" },
     { href: "/sales", label: "Sales", icon: "sales" },
+    { href: "/quotations", label: "Quotations", icon: "quotations" },
+    { href: "/shifts", label: "Cash register", icon: "shifts" },
+    { href: "/expenses", label: "Expenses", icon: "expenses" },
     { href: "/products", label: "Products", icon: "products" },
   ];
 
@@ -39,6 +42,7 @@ export default async function DashboardLayout({
   if (user.role === "ADMIN") {
     navItems.push(
       { href: "/users", label: "Users", icon: "users" },
+      { href: "/audit", label: "Audit log", icon: "audit" },
       { href: "/settings", label: "Settings", icon: "settings" }
     );
   }

@@ -16,6 +16,10 @@ import {
   Wallet,
   BarChart3,
   Barcode,
+  ReceiptIcon,
+  VaultIcon,
+  FileTextIcon,
+  ShieldCheckIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +38,10 @@ const icons = {
   dues: Wallet,
   reports: BarChart3,
   labels: Barcode,
+  expenses: ReceiptIcon,
+  shifts: VaultIcon,
+  quotations: FileTextIcon,
+  audit: ShieldCheckIcon,
   users: UserCog,
   settings: Settings,
 } satisfies Record<string, LucideIcon>;

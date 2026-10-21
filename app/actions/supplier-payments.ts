@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
-import { round2 } from "@/app/lib/format";
+import { round2, toNum } from "@/app/lib/format";
+import { recordAudit } from "@/app/lib/audit";
 
 export type SupplierPaymentResult = { ok: true } | { error: string };
 
@@ -107,11 +108,28 @@ export async function deleteSupplierPaymentAction(
 
   const payment = await prisma.supplierPayment.findUnique({
     where: { id },
-    select: { supplierId: true, purchaseId: true },
+    select: {
+      supplierId: true,
+      purchaseId: true,
+      amount: true,
+      supplier: { select: { name: true } },
+    },
   });
   if (!payment) return;
 
   await prisma.supplierPayment.delete({ where: { id } });
+  await recordAudit({
+    userId: user.id,
+    action: "supplierPayment.delete",
+    entityType: "Supplier",
+    entityId: payment.supplierId,
+    summary: `Removed a ${toNum(payment.amount)} payment to ${payment.supplier.name}`,
+    details: {
+      paymentId: id,
+      amount: toNum(payment.amount),
+      purchaseId: payment.purchaseId,
+    },
+  });
 
   revalidateSupplier(payment.supplierId, payment.purchaseId);
 }

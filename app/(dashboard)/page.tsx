@@ -11,6 +11,7 @@ import {
   DownloadIcon,
   WalletIcon,
   TruckIcon,
+  PiggyBankIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
@@ -19,6 +20,7 @@ import { getSettings } from "@/app/lib/settings";
 import { formatMoney, formatDateTime, formatQty, toNum, round2 } from "@/app/lib/format";
 import { getTotalReceivables, invoiceSettlement } from "@/app/lib/ledger";
 import { getTotalPayables } from "@/app/lib/payables";
+import { getProfitSummary } from "@/app/lib/profit";
 import { PageHeader } from "@/app/components/page-header";
 
 export const metadata = { title: "Dashboard" };
@@ -48,6 +50,7 @@ export default async function DashboardPage() {
     overdueCandidates,
     payables,
     recentReturns,
+    todayProfit,
   ] = await Promise.all([
     prisma.sale.aggregate({
       where: { status: "COMPLETED", createdAt: { gte: startOfToday } },
@@ -126,6 +129,13 @@ export default async function DashboardPage() {
       },
       select: { createdAt: true, amount: true },
     }),
+    // Profit is an owner-level number, like payables.
+    canSeePayables
+      ? getProfitSummary(
+          startOfToday,
+          new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 1)
+        )
+      : Promise.resolve(null),
   ]);
 
   const returnedSince = (from: Date, to?: Date) =>
@@ -216,6 +226,21 @@ export default async function DashboardPage() {
       href: "/customers",
       alert: overdueTotal > 0,
     },
+    ...(todayProfit
+      ? [
+          {
+            label: "Today's Net Profit",
+            value: formatMoney(todayProfit.netProfit, settings.currency),
+            sub:
+              todayProfit.expenses > 0
+                ? `${formatMoney(todayProfit.grossProfit, settings.currency)} gross − ${formatMoney(todayProfit.expenses, settings.currency)} expenses`
+                : "no expenses recorded today",
+            icon: PiggyBankIcon,
+            href: "/reports",
+            alert: todayProfit.netProfit < 0,
+          },
+        ]
+      : []),
     ...(canSeePayables
       ? [
           {

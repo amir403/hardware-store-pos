@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { round3 } from "@/app/lib/format";
+import { recordAudit } from "@/app/lib/audit";
 
 const adjustSchema = z.object({
   productId: z.string().min(1, "Select a product"),
@@ -55,6 +56,18 @@ export async function adjustStockAction(formData: FormData) {
         userId: user.id,
       },
     });
+
+    await recordAudit(
+      {
+        userId: user.id,
+        action: "stock.adjust",
+        entityType: "Product",
+        entityId: productId,
+        summary: `${product.name}: ${current} → ${newQty} ${product.unit} (${reason})`,
+        details: { from: current, to: newQty, change, reason },
+      },
+      tx
+    );
   });
 
   revalidatePath("/inventory");

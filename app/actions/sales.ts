@@ -6,6 +6,15 @@ import { prisma } from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
+import { recordAudit } from "@/app/lib/audit";
+import {
+  SaleValidationError,
+  buildInvoiceNo,
+  dailyPrefix,
+  nextDailyNumber,
+  priceSaleLines,
+  startOfDay,
+} from "@/app/lib/sale-pricing";
 import { getCustomerBalance, invoiceSettlement } from "@/app/lib/ledger";
 import { round2, round3, toNum } from "@/app/lib/format";
 
@@ -66,116 +75,6 @@ const holdSaleSchema = z.object({
   /** Set when re-parking a bill that is already on hold. */
   replaceHeldSaleId: nullableId,
 });
-
-class SaleValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "SaleValidationError";
-  }
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-async function buildInvoiceNo(tx: Prisma.TransactionClient): Promise<string> {
-  const now = new Date();
-  const dateStr = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("");
-  const count = await tx.sale.count({
-    where: { createdAt: { gte: startOfDay(now) } },
-  });
-  return `INV-${dateStr}-${String(count + 1).padStart(4, "0")}`;
-}
-
-type SaleLineInput = {
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  discount: number;
-};
-
-type PricedLine = SaleLineInput & {
-  productName: string;
-  lineTotal: number;
-  trackStock: boolean;
-};
-
-/**
- * Single source of truth for sale money math, shared by completed sales and
- * held bills so a recalled park totals exactly what the cashier first saw.
- */
-async function priceSaleLines(
-  tx: Prisma.TransactionClient,
-  items: SaleLineInput[],
-  discountAmountRaw: number,
-  opts: { pricesIncludeTax: boolean; checkStock: boolean }
-): Promise<{
-  lines: PricedLine[];
-  subtotal: number;
-  taxAmount: number;
-  discountAmount: number;
-  total: number;
-}> {
-  const products = await tx.product.findMany({
-    where: { id: { in: items.map((item) => item.productId) } },
-  });
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-  let subtotal = 0;
-  let taxAmount = 0;
-
-  const lines = items.map<PricedLine>((item) => {
-    const product = productMap.get(item.productId);
-    if (!product || !product.isActive) {
-      throw new SaleValidationError(
-        "One of the products is no longer available. Please refresh and try again."
-      );
-    }
-    if (opts.checkStock && product.trackStock) {
-      const available = Number(product.stockQty.toString());
-      if (item.quantity > available) {
-        throw new SaleValidationError(
-          `Insufficient stock for "${product.name}" — only ${available} ${product.unit} available.`
-        );
-      }
-    }
-
-    const gross = round2(item.quantity * item.unitPrice);
-    const lineTotal = round2(Math.max(0, gross - item.discount));
-    const taxRate = Number(product.taxRate.toString());
-
-    let lineTax = 0;
-    if (taxRate > 0) {
-      lineTax = opts.pricesIncludeTax
-        ? round2((lineTotal * taxRate) / (100 + taxRate))
-        : round2((lineTotal * taxRate) / 100);
-    }
-
-    subtotal = round2(subtotal + lineTotal);
-    taxAmount = round2(taxAmount + lineTax);
-
-    return {
-      productId: product.id,
-      productName: product.name,
-      quantity: round3(item.quantity),
-      unitPrice: round2(item.unitPrice),
-      discount: round2(item.discount),
-      lineTotal,
-      trackStock: product.trackStock,
-    };
-  });
-
-  const discountAmount = round2(Math.min(discountAmountRaw, subtotal));
-  const total = opts.pricesIncludeTax
-    ? round2(subtotal - discountAmount)
-    : round2(subtotal - discountAmount + taxAmount);
-
-  return { lines, subtotal, taxAmount, discountAmount, total };
-}
 
 export async function createSaleAction(
   input: CreateSaleInput
@@ -285,6 +184,11 @@ export async function createSaleAction(
 
         // A recalled park is replaced by this completed sale, never double-counted.
         if (data.replaceHeldSaleId) {
+          // A quotation that became this held bill now points at the real sale.
+          await tx.quotation.updateMany({
+            where: { saleId: data.replaceHeldSaleId },
+            data: { saleId: created.id },
+          });
           await tx.sale.deleteMany({
             where: { id: data.replaceHeldSaleId, status: "HELD" },
           });
@@ -373,6 +277,10 @@ export async function holdSaleAction(
 
         // Re-parking the same bill replaces its previous HELD row.
         if (data.replaceHeldSaleId && data.replaceHeldSaleId !== created.id) {
+          await tx.quotation.updateMany({
+            where: { saleId: data.replaceHeldSaleId },
+            data: { saleId: created.id },
+          });
           await tx.sale.deleteMany({
             where: { id: data.replaceHeldSaleId, status: "HELD" },
           });
@@ -409,10 +317,20 @@ export async function discardHeldSaleAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  await prisma.sale.deleteMany({ where: { id, status: "HELD" } });
+  await prisma.$transaction(async (tx) => {
+    const held = await tx.sale.findFirst({ where: { id, status: "HELD" } });
+    if (!held) return;
+    // Throwing away a bill made from a quotation puts the quote back on offer.
+    await tx.quotation.updateMany({
+      where: { saleId: id },
+      data: { status: "OPEN", saleId: null },
+    });
+    await tx.sale.delete({ where: { id } });
+  });
 
   revalidatePath("/pos");
   revalidatePath("/sales");
+  revalidatePath("/quotations");
 }
 
 /**
@@ -471,6 +389,18 @@ export async function refundSaleAction(formData: FormData) {
       where: { id: sale.id },
       data: { status: "REFUNDED" },
     });
+
+    await recordAudit(
+      {
+        userId: user.id,
+        action: "sale.refund",
+        entityType: "Sale",
+        entityId: sale.id,
+        summary: `Refunded ${sale.invoiceNo} (${toNum(sale.total)})`,
+        details: { invoiceNo: sale.invoiceNo, total: toNum(sale.total) },
+      },
+      tx
+    );
 
     return sale;
   });
@@ -562,6 +492,18 @@ export async function voidSaleAction(formData: FormData) {
       },
     });
 
+    await recordAudit(
+      {
+        userId: user.id,
+        action: "sale.void",
+        entityType: "Sale",
+        entityId: sale.id,
+        summary: `Voided ${sale.invoiceNo} (${toNum(sale.total)}): ${reason}`,
+        details: { invoiceNo: sale.invoiceNo, total: toNum(sale.total), reason },
+      },
+      tx
+    );
+
     return sale;
   });
 
@@ -599,16 +541,13 @@ const returnItemsSchema = z.object({
 });
 
 async function buildReturnNo(tx: Prisma.TransactionClient): Promise<string> {
-  const now = new Date();
-  const dateStr = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("");
-  const count = await tx.saleReturn.count({
-    where: { createdAt: { gte: startOfDay(now) } },
+  const prefix = dailyPrefix("RET");
+  const last = await tx.saleReturn.findFirst({
+    where: { returnNo: { startsWith: prefix } },
+    orderBy: { returnNo: "desc" },
+    select: { returnNo: true },
   });
-  return `RET-${dateStr}-${String(count + 1).padStart(4, "0")}`;
+  return nextDailyNumber(prefix, last?.returnNo ?? null);
 }
 
 /**
@@ -769,6 +708,24 @@ export async function returnSaleItemsAction(
             },
           });
         }
+
+        await recordAudit(
+          {
+            userId: user.id,
+            action: "sale.return",
+            entityType: "Sale",
+            entityId: sale.id,
+            summary: `${saleReturn.returnNo} on ${sale.invoiceNo}: ${amount} returned, ${refundAmount} paid back`,
+            details: {
+              returnNo: saleReturn.returnNo,
+              invoiceNo: sale.invoiceNo,
+              amount,
+              refundAmount,
+              reason: data.reason,
+            },
+          },
+          tx
+        );
 
         return { returnNo: saleReturn.returnNo, customerId: sale.customerId };
       });

@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import {
   BanknoteIcon,
   CoinsIcon,
+  PiggyBankIcon,
+  ReceiptTextIcon,
   DownloadIcon,
   ReceiptIcon,
   TrendingUpIcon,
@@ -14,6 +16,7 @@ import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatMoney, formatQty, round2, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
+import { getExpenseTotal } from "@/app/lib/expenses";
 
 export const metadata = { title: "Reports" };
 
@@ -131,6 +134,9 @@ export default async function ReportsPage({
     },
   });
 
+  // Running costs in the range; toAt is 23:59:59, so include that last second.
+  const expenses = await getExpenseTotal(fromAt, new Date(toAt.getTime() + 1000));
+
   /* ---------- totals ---------- */
 
   const returned = round2(returns.reduce((sum, r) => sum + toNum(r.amount), 0));
@@ -171,6 +177,7 @@ export default async function ReportsPage({
       returns.reduce((sum, r) => sum + costOf(r.items), 0)
   );
   const grossProfit = round2(revenue - taxes - cost);
+  const netProfit = round2(grossProfit - expenses);
   const margin = revenue > 0 ? round2((grossProfit / revenue) * 100) : 0;
   const avgBill = sales.length > 0 ? round2(revenue / sales.length) : 0;
   const creditGiven = round2(Math.max(0, revenue - collected));
@@ -375,6 +382,19 @@ export default async function ReportsPage({
       tone: grossProfit >= 0 ? "good" : "warn",
     },
     {
+      label: "Expenses",
+      value: formatMoney(expenses, currency),
+      sub: "rent, bills, wages and other running costs",
+      icon: ReceiptTextIcon,
+    },
+    {
+      label: "Net profit",
+      value: formatMoney(netProfit, currency),
+      sub: "gross profit less expenses",
+      icon: PiggyBankIcon,
+      tone: netProfit >= 0 ? "good" : "warn",
+    },
+    {
       label: "Collected",
       value: formatMoney(collected, currency),
       sub:
@@ -489,7 +509,7 @@ export default async function ReportsPage({
       ) : (
         <>
           {/* Headline numbers */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {cards.map((card) => {
               const Icon = card.icon;
               return (

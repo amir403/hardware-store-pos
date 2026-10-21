@@ -59,6 +59,8 @@ export default async function EditProductPage({
             categoryId: product.categoryId ?? "",
             costPrice: String(product.costPrice ?? 0),
             price: String(product.price ?? 0),
+            wholesalePrice:
+              product.wholesalePrice === null ? "" : String(product.wholesalePrice),
             taxRate: String(product.taxRate ?? 0),
             stockQty: String(product.stockQty ?? 0),
             reorderLevel: String(product.reorderLevel ?? 0),
