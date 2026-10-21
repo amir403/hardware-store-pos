@@ -35,6 +35,8 @@ export default async function SettingsPage() {
                 taxRate: String(settings.taxRate),
                 pricesIncludeTax: settings.pricesIncludeTax,
                 receiptFooter: settings.receiptFooter ?? "",
+                receiptPaper: settings.receiptPaper,
+                labelSize: settings.labelSize,
               }}
             />
           </div>

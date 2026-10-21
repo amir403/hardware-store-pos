@@ -1,6 +1,12 @@
 import { cache } from "react";
 import { prisma } from "@/app/lib/prisma";
 import { toNum } from "@/app/lib/format";
+import {
+  isLabelSize,
+  isReceiptPaper,
+  type LabelSize,
+  type ReceiptPaper,
+} from "@/app/lib/print-formats";
 
 export type StoreSettings = {
   storeName: string;
@@ -10,6 +16,8 @@ export type StoreSettings = {
   taxRate: number;
   pricesIncludeTax: boolean;
   receiptFooter: string | null;
+  receiptPaper: ReceiptPaper;
+  labelSize: LabelSize;
 };
 
 export const getSettings = cache(async (): Promise<StoreSettings> => {
@@ -26,6 +34,8 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
       taxRate: 0,
       pricesIncludeTax: true,
       receiptFooter: null,
+      receiptPaper: "80mm",
+      labelSize: "50x25",
     };
   }
 
@@ -37,5 +47,7 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
     taxRate: toNum(settings.taxRate),
     pricesIncludeTax: settings.pricesIncludeTax,
     receiptFooter: settings.receiptFooter,
+    receiptPaper: isReceiptPaper(settings.receiptPaper) ? settings.receiptPaper : "80mm",
+    labelSize: isLabelSize(settings.labelSize) ? settings.labelSize : "50x25",
   };
 });

@@ -6,6 +6,7 @@ import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatMoney, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
+import { LABEL_SIZES } from "@/app/lib/print-formats";
 
 export const metadata = { title: "Barcode labels" };
 
@@ -104,6 +105,20 @@ export default async function BarcodeLabelsPage({
               <p className="text-sm text-zinc-600">
                 Tick each item · shift-click to select a range
               </p>
+              <label className="flex items-center gap-2 text-sm text-zinc-700">
+                Label size
+                <select
+                  name="size"
+                  defaultValue={settings.labelSize}
+                  className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                >
+                  {Object.entries(LABEL_SIZES).map(([value, size]) => (
+                    <option key={value} value={value}>
+                      {size.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="flex items-center gap-2 text-sm text-zinc-700">
                 Labels per product
                 <input

@@ -9,12 +9,18 @@ export function Barcode({
   value,
   height = 9,
   moduleWidth = 0.34,
+  fitWidthMm,
 }: {
   value: string;
   /** Bar height in millimetres. */
   height?: number;
   /** Width of the narrowest bar in millimetres (0.30–0.50 is spec-safe). */
   moduleWidth?: number;
+  /**
+   * Narrow the bars until the whole code (quiet zones included) fits this many
+   * millimetres — for small thermal labels and receipts.
+   */
+  fitWidthMm?: number;
 }) {
   const runs = encodeCode128(value);
   if (!runs) {
@@ -37,13 +43,18 @@ export function Barcode({
   // viewBox costs no markup and cannot be clipped by the label's own padding.
   const quietZone = 10;
   const span = modules + quietZone * 2;
+  // Never below 0.19 mm: thinner bars fall under a 203 dpi printer's
+  // 1.5-dot minimum and stop scanning reliably.
+  const barWidth = fitWidthMm
+    ? Math.max(0.19, Math.min(moduleWidth, fitWidthMm / span))
+    : moduleWidth;
 
   return (
     <svg
       role="img"
       aria-label={`Barcode ${value}`}
       viewBox={`${-quietZone} 0 ${span} 100`}
-      width={`${span * moduleWidth}mm`}
+      width={`${span * barWidth}mm`}
       height={`${height}mm`}
       preserveAspectRatio="none"
       shapeRendering="crispEdges"

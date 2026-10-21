@@ -550,5 +550,7 @@ model Settings {
   taxRate          Decimal  @default(0) @db.Decimal(5, 2) // default tax % for new products
   pricesIncludeTax Boolean  @default(true)
   receiptFooter    String?
+  receiptPaper     String   @default("80mm") // 80mm | 58mm | A4
+  labelSize        String   @default("50x25") // A4 | 50x25 | 40x30 | 38x25 | 58x40
   updatedAt        DateTime @updatedAt
 }

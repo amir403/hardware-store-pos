@@ -7,6 +7,7 @@ import { getActionUser, hasRole } from "@/app/lib/auth";
 import { recordAudit } from "@/app/lib/audit";
 import { round2 } from "@/app/lib/format";
 import type { FormState } from "@/app/actions/products";
+import { LABEL_SIZES, RECEIPT_PAPERS } from "@/app/lib/print-formats";
 
 export type SettingsFormState = FormState & { savedAt?: number };
 
@@ -33,6 +34,8 @@ const settingsSchema = z.object({
     .trim()
     .max(300)
     .transform((v) => (v === "" ? null : v)),
+  receiptPaper: z.enum(Object.keys(RECEIPT_PAPERS) as [string, ...string[]]),
+  labelSize: z.enum(Object.keys(LABEL_SIZES) as [string, ...string[]]),
 });
 
 export async function updateSettingsAction(
@@ -52,6 +55,8 @@ export async function updateSettingsAction(
     taxRate: formData.get("taxRate") ?? "0",
     pricesIncludeTax: formData.get("pricesIncludeTax") === "on",
     receiptFooter: formData.get("receiptFooter") ?? "",
+    receiptPaper: formData.get("receiptPaper") ?? "80mm",
+    labelSize: formData.get("labelSize") ?? "50x25",
   });
 
   if (!parsed.success) {
@@ -66,6 +71,8 @@ export async function updateSettingsAction(
     taxRate: round2(parsed.data.taxRate),
     pricesIncludeTax: parsed.data.pricesIncludeTax,
     receiptFooter: parsed.data.receiptFooter,
+    receiptPaper: parsed.data.receiptPaper,
+    labelSize: parsed.data.labelSize,
   };
 
   try {

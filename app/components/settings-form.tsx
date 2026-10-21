@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useSuccessToast } from "@/app/components/toast";
+import { LABEL_SIZES, RECEIPT_PAPERS } from "@/app/lib/print-formats";
 import type { SettingsFormState } from "@/app/actions/settings";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -13,6 +14,8 @@ export type SettingsDefaults = {
   taxRate: string;
   pricesIncludeTax: boolean;
   receiptFooter: string;
+  receiptPaper: string;
+  labelSize: string;
 };
 
 const inputClass =
@@ -147,6 +150,48 @@ export function SettingsForm({
             placeholder="Thank you for your business!"
             className={inputClass}
           />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="receiptPaper" className={labelClass}>
+            Receipt printer
+          </label>
+          <select
+            id="receiptPaper"
+            name="receiptPaper"
+            defaultValue={defaults.receiptPaper}
+            className={inputClass}
+          >
+            {Object.entries(RECEIPT_PAPERS).map(([value, paper]) => (
+              <option key={value} value={value}>
+                {paper.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-400">
+            Sale receipts and quotations print in this width.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="labelSize" className={labelClass}>
+            Barcode labels
+          </label>
+          <select
+            id="labelSize"
+            name="labelSize"
+            defaultValue={defaults.labelSize}
+            className={inputClass}
+          >
+            {Object.entries(LABEL_SIZES).map(([value, size]) => (
+              <option key={value} value={value}>
+                {size.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-400">
+            Default label stock; it can be changed on the label page too.
+          </p>
         </div>
       </div>
 
