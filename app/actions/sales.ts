@@ -10,7 +10,9 @@ import { recordAudit } from "@/app/lib/audit";
 import {
   SaleValidationError,
   buildInvoiceNo,
+  cashierPricingProblem,
   dailyPrefix,
+  returnCredit,
   nextDailyNumber,
   priceSaleLines,
   startOfDay,
@@ -99,6 +101,22 @@ export async function createSaleAction(
             checkStock: true,
           });
 
+        if (user.role === "CASHIER") {
+          const tier = data.customerId
+            ? (
+                await tx.customer.findUnique({
+                  where: { id: data.customerId },
+                  select: { priceTier: true },
+                })
+              )?.priceTier
+            : null;
+          const problem = cashierPricingProblem(lines, discountAmount, {
+            wholesale: tier === "WHOLESALE",
+            maxDiscountPct: settings.cashierMaxDiscountPct,
+          });
+          if (problem) throw new SaleValidationError(problem);
+        }
+
         // Paying less than the total puts the difference on the customer's
         // account. Anything left over at the counter is change, never a credit.
         const paidAmount = round2(Math.min(data.paidAmount, total));
@@ -158,6 +176,7 @@ export async function createSaleAction(
                 unitPrice: line.unitPrice,
                 discount: line.discount,
                 lineTotal: line.lineTotal,
+                costPrice: line.costPrice,
               })),
             },
           },
@@ -270,6 +289,7 @@ export async function holdSaleAction(
                 unitPrice: line.unitPrice,
                 discount: line.discount,
                 lineTotal: line.lineTotal,
+                costPrice: line.costPrice,
               })),
             },
           },
@@ -312,7 +332,7 @@ export async function holdSaleAction(
 
 /** Throw away a parked bill. Only HELD rows can be discarded this way. */
 export async function discardHeldSaleAction(formData: FormData) {
-  await getActionUser();
+  const user = await getActionUser();
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
@@ -326,6 +346,17 @@ export async function discardHeldSaleAction(formData: FormData) {
       data: { status: "OPEN", saleId: null },
     });
     await tx.sale.delete({ where: { id } });
+    await recordAudit(
+      {
+        userId: user.id,
+        action: "sale.discardHeld",
+        entityType: "Sale",
+        entityId: id,
+        summary: `Discarded held bill ${held.invoiceNo} (${toNum(held.total)})`,
+        details: { invoiceNo: held.invoiceNo, total: toNum(held.total) },
+      },
+      tx
+    );
   });
 
   revalidatePath("/pos");
@@ -641,11 +672,13 @@ export async function returnSaleItemsAction(
           const creditedSoFar = round2(
             item.returnItems.reduce((sum, r) => sum + toNum(r.amount), 0)
           );
-          const valueLeft = round2(Math.max(0, lineValue - creditedSoFar));
-          const amount =
-            quantity === remaining
-              ? valueLeft
-              : round2(Math.min(valueLeft, (lineValue * quantity) / soldQty));
+          const amount = returnCredit({
+            lineValue,
+            soldQty,
+            creditedSoFar,
+            quantity,
+            remaining,
+          });
 
           lines.push({
             saleItemId: item.id,

@@ -10,6 +10,9 @@ import { deletePaymentAction } from "@/app/actions/payments";
 import { PageHeader } from "@/app/components/page-header";
 import { PaymentForm, type OpenInvoice } from "@/app/components/customers/payment-form";
 import { ConfirmForm } from "@/app/components/confirm-form";
+import { WhatsAppButton } from "@/app/components/whatsapp-button";
+import { duesReminderText } from "@/app/lib/whatsapp";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Customer account" };
 
@@ -42,7 +45,7 @@ export default async function CustomerAccountPage({
 }) {
   const { id } = await params;
 
-  const [settings, user, customer] = await Promise.all([
+  const [settings, user, customer, t] = await Promise.all([
     getSettings(),
     getCurrentUser(),
     prisma.customer.findUnique({
@@ -76,6 +79,7 @@ export default async function CustomerAccountPage({
         },
       },
     }),
+    getT(),
   ]);
 
   if (!customer) notFound();
@@ -142,7 +146,7 @@ export default async function CustomerAccountPage({
       key: `payment-${payment.id}`,
       kind: "PAYMENT",
       at: payment.createdAt,
-      title: payment.sale ? `Payment · ${payment.sale.invoiceNo}` : "Payment on account",
+      title: payment.sale ? `${t("Payment")} · ${payment.sale.invoiceNo}` : t("On the account (advance)"),
       subtitle: `${PAYMENT_LABELS[payment.method] ?? payment.method} · ${payment.user.name}${payment.note ? ` · ${payment.note}` : ""}`,
       href: payment.sale ? `/sales/${payment.sale.id}` : undefined,
       charge: 0,
@@ -178,7 +182,7 @@ export default async function CustomerAccountPage({
           href="/customers"
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
         >
-          <ArrowLeftIcon className="h-4 w-4" /> Back to customers
+          <ArrowLeftIcon className="h-4 w-4" /> {t("Back to customers")}
         </Link>
       </div>
 
@@ -188,12 +192,26 @@ export default async function CustomerAccountPage({
           .filter(Boolean)
           .join(" · ") || "No contact details on file"}
         actions={
-          <Link
-            href={`/customers?edit=${customer.id}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-          >
-            <PencilIcon className="h-4 w-4" /> Edit
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {balance.outstanding > 0 && (
+              <WhatsAppButton
+                phone={customer.phone}
+                label={t("Send reminder")}
+                text={duesReminderText({
+                  storeName: settings.storeName,
+                  customerName: customer.name,
+                  amount: formatMoney(balance.outstanding, currency),
+                  dueBy: invoices.find((i) => i.dueDate)?.dueDate ?? null,
+                })}
+              />
+            )}
+            <Link
+              href={`/customers?edit=${customer.id}`}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              <PencilIcon className="h-4 w-4" /> {t("Edit")}
+            </Link>
+          </div>
         }
       />
 
@@ -203,7 +221,7 @@ export default async function CustomerAccountPage({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <p className="text-xs uppercase tracking-wide text-zinc-500">
-                Billed
+                {t("Billed")}
               </p>
               <p className="mt-1 text-lg font-semibold text-zinc-900">
                 {formatMoney(balance.billed, currency)}
@@ -211,7 +229,7 @@ export default async function CustomerAccountPage({
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <p className="text-xs uppercase tracking-wide text-zinc-500">
-                Collected
+                {t("Collected")}
               </p>
               <p className="mt-1 text-lg font-semibold text-zinc-900">
                 {formatMoney(balance.collected, currency)}
@@ -225,7 +243,7 @@ export default async function CustomerAccountPage({
               }`}
             >
               <p className="text-xs uppercase tracking-wide text-zinc-500">
-                Outstanding
+                {t("Outstanding")}
               </p>
               <p
                 className={`mt-1 text-lg font-semibold ${
@@ -237,17 +255,17 @@ export default async function CustomerAccountPage({
                 }`}
               >
                 {balance.outstanding < 0
-                  ? `${formatMoney(-balance.outstanding, currency)} credit`
+                  ? `${formatMoney(-balance.outstanding, currency)} ${t("credit")}`
                   : formatMoney(balance.outstanding, currency)}
               </p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <p className="text-xs uppercase tracking-wide text-zinc-500">
-                Credit limit
+                {t("Credit limit")}
               </p>
               <p className="mt-1 text-lg font-semibold text-zinc-900">
                 {customer.creditLimit === null
-                  ? "No cap"
+                  ? t("No cap")
                   : formatMoney(toNum(customer.creditLimit), currency)}
               </p>
               {customer.creditLimit !== null && (
@@ -255,7 +273,7 @@ export default async function CustomerAccountPage({
                   {Math.max(
                     0,
                     round2(toNum(customer.creditLimit) - balance.outstanding)
-                  ).toLocaleString()} left
+                  ).toLocaleString()} {t("left")}
                 </p>
               )}
             </div>
@@ -281,16 +299,16 @@ export default async function CustomerAccountPage({
           {/* Statement */}
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
-              <h2 className="text-sm font-semibold text-zinc-900">Account history</h2>
+              <h2 className="text-sm font-semibold text-zinc-900">{t("Account history")}</h2>
             </div>
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-4 py-2.5 font-medium">Detail</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Billed</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Paid</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Balance</th>
+                  <th className="px-4 py-2.5 font-medium">{t("Date")}</th>
+                  <th className="px-4 py-2.5 font-medium">{t("Detail")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Billed")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Paid")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Balance")}</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -301,7 +319,7 @@ export default async function CustomerAccountPage({
                       colSpan={6}
                       className="px-4 py-10 text-center text-sm text-zinc-400"
                     >
-                      Nothing on this account yet.
+                      {t("Nothing on this account yet.")}
                     </td>
                   </tr>
                 )}
@@ -377,7 +395,7 @@ export default async function CustomerAccountPage({
         <div className="flex flex-col gap-4">
           <div className="rounded-xl border border-zinc-200 bg-white p-6">
             <h2 className="mb-4 text-sm font-semibold text-zinc-900">
-              Receive payment
+              {t("Receive payment")}
             </h2>
             <PaymentForm
               customerId={customer.id}
@@ -389,13 +407,13 @@ export default async function CustomerAccountPage({
 
           {customer.address && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Address</h2>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">{t("Address")}</h2>
               <p className="text-zinc-600">{customer.address}</p>
             </div>
           )}
           {customer.notes && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Notes</h2>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">{t("Notes")}</h2>
               <p className="text-zinc-600">{customer.notes}</p>
             </div>
           )}

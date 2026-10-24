@@ -8,6 +8,7 @@ import {
 import { SubmitButton } from "@/app/components/submit-button";
 import { useToast } from "@/app/components/toast";
 import { formatMoney } from "@/app/lib/format";
+import { useT } from "@/app/components/lang";
 
 export type OpenInvoice = {
   id: string;
@@ -46,6 +47,7 @@ export function PaymentForm({
   // overrides it for a part payment. Derived during render, no effect needed.
   const amount = amountDraft ?? (selected ? String(selected.due) : "");
   const toast = useToast();
+  const t = useT();
 
   async function submit(
     _previous: PaymentResult | null,
@@ -83,7 +85,7 @@ export function PaymentForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="payment-sale" className={labelClass}>
-          Apply to invoice
+          {t("Apply to invoice")}
         </label>
         <select
           id="payment-sale"
@@ -97,7 +99,7 @@ export function PaymentForm({
           }}
           className={inputClass}
         >
-          <option value="">On the account (advance)</option>
+          <option value="">{t("On the account (advance)")}</option>
           {invoices.map((invoice) => (
             <option key={invoice.id} value={invoice.id}>
               {invoice.invoiceNo} · {formatMoney(invoice.due, currency)}
@@ -112,7 +114,7 @@ export function PaymentForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="payment-amount" className={labelClass}>
-          Amount *
+          {t("Amount *")}
         </label>
         <input
           id="payment-amount"
@@ -130,20 +132,20 @@ export function PaymentForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="payment-method" className={labelClass}>
-          Method
+          {t("Method")}
         </label>
         <select id="payment-method" name="method" defaultValue="CASH" className={inputClass}>
-          <option value="CASH">Cash</option>
-          <option value="CARD">Card</option>
-          <option value="BANK_TRANSFER">Bank transfer</option>
-          <option value="MOBILE">Mobile</option>
-          <option value="OTHER">Other</option>
+          <option value="CASH">{t("Cash")}</option>
+          <option value="CARD">{t("Card")}</option>
+          <option value="BANK_TRANSFER">{t("Bank transfer")}</option>
+          <option value="MOBILE">{t("Mobile")}</option>
+          <option value="OTHER">{t("Other")}</option>
         </select>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="payment-note" className={labelClass}>
-          Note
+          {t("Note")}
         </label>
         <input
           id="payment-note"
@@ -154,7 +156,7 @@ export function PaymentForm({
         />
       </div>
 
-      <SubmitButton>Receive payment</SubmitButton>
+      <SubmitButton>{t("Receive payment")}</SubmitButton>
     </form>
   );
 }

@@ -18,6 +18,7 @@ const MOVEMENT_STYLES: Record<string, string> = {
   RETURN: "bg-violet-50 text-violet-700",
   ADJUSTMENT: "bg-amber-50 text-amber-700",
   DAMAGE: "bg-red-50 text-red-700",
+  SUPPLIER_RETURN: "bg-orange-50 text-orange-700",
 };
 
 export default async function InventoryPage() {
@@ -58,6 +59,14 @@ export default async function InventoryPage() {
       <PageHeader
         title="Inventory"
         description="Stock movements, low stock and adjustments"
+        actions={
+          <Link
+            href="/inventory/count"
+            className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            Stock count
+          </Link>
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

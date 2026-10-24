@@ -37,6 +37,7 @@ export default async function SettingsPage() {
                 receiptFooter: settings.receiptFooter ?? "",
                 receiptPaper: settings.receiptPaper,
                 labelSize: settings.labelSize,
+                cashierMaxDiscountPct: String(settings.cashierMaxDiscountPct),
               }}
             />
           </div>

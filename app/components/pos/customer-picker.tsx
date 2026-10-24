@@ -7,6 +7,7 @@ import {
   type QuickCustomer,
 } from "@/app/actions/parties";
 import { useToast } from "@/app/components/toast";
+import { useT } from "@/app/components/lang";
 
 const inputClass =
   "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
@@ -29,6 +30,7 @@ export function CustomerPicker({
   onCreated: (customer: QuickCustomer) => void;
 }) {
   const toast = useToast();
+  const t = useT();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -96,20 +98,20 @@ export function CustomerPicker({
   if (adding) {
     return (
       <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-        <p className="text-xs font-semibold text-zinc-700">New customer</p>
+        <p className="text-xs font-semibold text-zinc-700">{t("New customer")}</p>
         {error && <p className="text-xs text-red-600">{error}</p>}
         <input
           autoFocus
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          placeholder="Name *"
+          placeholder={t("Name *")}
           maxLength={80}
           className={inputClass}
         />
         <input
           value={newPhone}
           onChange={(e) => setNewPhone(e.target.value)}
-          placeholder="Phone (optional)"
+          placeholder={t("Phone (optional)")}
           maxLength={20}
           inputMode="tel"
           className={inputClass}
@@ -121,7 +123,7 @@ export function CustomerPicker({
             onChange={(e) => setNewWholesale(e.target.checked)}
             className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
           />
-          Wholesale customer
+          {t("Wholesale customer")}
         </label>
         <div className="flex gap-2">
           <button
@@ -130,14 +132,14 @@ export function CustomerPicker({
             onClick={saveNew}
             className="h-8 flex-1 rounded-lg bg-zinc-900 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
           >
-            {isPending ? "Saving…" : "Add & select"}
+            {isPending ? `${t("Saving")}…` : t("Add & select")}
           </button>
           <button
             type="button"
             onClick={() => setAdding(false)}
             className="h-8 rounded-lg border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       </div>
@@ -154,14 +156,14 @@ export function CustomerPicker({
           )}
           {selected.priceTier === "WHOLESALE" && (
             <span className="ml-1.5 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">
-              wholesale
+              {t("wholesale")}
             </span>
           )}
         </span>
         <button
           type="button"
           onClick={() => onChange("")}
-          title="Back to walk-in"
+          title={t("Back to walk-in")}
           aria-label="Remove customer"
           className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
         >
@@ -193,15 +195,15 @@ export function CustomerPicker({
                 setOpen(false);
               }
             }}
-            placeholder="Walk-in — search name or phone"
+            placeholder={t("Walk-in — search name or phone")}
             className={`${inputClass} pl-8`}
           />
         </div>
         <button
           type="button"
           onClick={startAdding}
-          title="Add a new customer"
-          aria-label="Add a new customer"
+          title={t("Add a new customer")}
+          aria-label={t("Add a new customer")}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
         >
           <UserPlusIcon className="h-4 w-4" />
@@ -227,7 +229,7 @@ export function CustomerPicker({
             </li>
           ))}
           {matches.length === 0 && (
-            <li className="px-3 py-2 text-xs text-zinc-400">No customer matches.</li>
+            <li className="px-3 py-2 text-xs text-zinc-400">{t("No customer matches.")}</li>
           )}
           <li className="border-t border-zinc-100">
             <button
@@ -237,7 +239,7 @@ export function CustomerPicker({
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium text-zinc-700 hover:bg-zinc-50"
             >
               <UserPlusIcon className="h-3.5 w-3.5" />
-              {q ? `Add "${query.trim()}" as a new customer` : "Add a new customer"}
+              {q ? `+ "${query.trim()}"` : t("Add a new customer")}
             </button>
           </li>
         </ul>

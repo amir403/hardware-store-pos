@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useSuccessToast } from "@/app/components/toast";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useT } from "@/app/components/lang";
 
 export type PartyDefaults = {
   id?: string;
@@ -36,6 +37,7 @@ export function PartyForm({
   /** Toast shown after a successful save. */
   successMessage?: string;
 }) {
+  const t = useT();
   const [state, formAction] = useActionState(
     useSuccessToast(action, successMessage),
     {}
@@ -56,7 +58,7 @@ export function PartyForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="party-name" className={labelClass}>
-          Name *
+          {t("Name *")}
         </label>
         <input
           id="party-name"
@@ -74,7 +76,7 @@ export function PartyForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="party-phone" className={labelClass}>
-          Phone
+          {t("Phone")}
         </label>
         <input
           id="party-phone"
@@ -91,7 +93,7 @@ export function PartyForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="party-email" className={labelClass}>
-          Email
+          {t("Email")}
         </label>
         <input
           id="party-email"
@@ -110,7 +112,7 @@ export function PartyForm({
       {showCreditLimit && (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="party-credit-limit" className={labelClass}>
-            Credit limit
+            {t("Credit limit")}
           </label>
           <input
             id="party-credit-limit"
@@ -119,7 +121,7 @@ export function PartyForm({
             min="0"
             step="0.01"
             defaultValue={defaults.creditLimit ?? ""}
-            placeholder="No limit"
+            placeholder={t("No limit")}
             className={inputClass}
           />
           <p className="text-xs text-zinc-400">
@@ -141,7 +143,7 @@ export function PartyForm({
             className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900"
           />
           <span>
-            Wholesale customer
+            {t("Wholesale customer")}
             <span className="block text-xs text-zinc-400">
               The POS charges wholesale prices where a product has one.
             </span>
@@ -151,7 +153,7 @@ export function PartyForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="party-address" className={labelClass}>
-          Address
+          {t("Address")}
         </label>
         <input
           id="party-address"
@@ -165,7 +167,7 @@ export function PartyForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="party-notes" className={labelClass}>
-          Notes
+          {t("Notes")}
         </label>
         <textarea
           id="party-notes"

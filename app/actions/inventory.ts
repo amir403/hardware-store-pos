@@ -74,3 +74,71 @@ export async function adjustStockAction(formData: FormData) {
   revalidatePath("/products");
   revalidatePath("/");
 }
+
+/**
+ * Apply a whole stock count at once. The form posts `count:<productId>` for
+ * every row; blank rows were not counted and are left alone. Each difference
+ * becomes an ADJUSTMENT movement, and the count is one audit entry.
+ */
+export async function stockCountAction(formData: FormData) {
+  const user = await getActionUser();
+  if (!hasRole(user, "ADMIN", "MANAGER")) {
+    throw new Error("Only managers and admins can apply a stock count.");
+  }
+
+  const counted = new Map<string, number>();
+  for (const [key, raw] of formData.entries()) {
+    if (!key.startsWith("count:") || String(raw).trim() === "") continue;
+    const qty = Number(String(raw).replace(/,/g, ""));
+    if (!Number.isFinite(qty) || qty < 0 || qty > 9_999_999) {
+      throw new Error("Counted quantities must be zero or more.");
+    }
+    counted.set(key.slice("count:".length), round3(qty));
+  }
+  if (counted.size === 0) throw new Error("Enter at least one counted quantity.");
+
+  await prisma.$transaction(async (tx) => {
+    const products = await tx.product.findMany({
+      where: { id: { in: [...counted.keys()] }, trackStock: true },
+      select: { id: true, name: true, unit: true, stockQty: true },
+    });
+
+    const changes: { name: string; from: number; to: number }[] = [];
+    for (const product of products) {
+      const to = counted.get(product.id)!;
+      const from = Number(product.stockQty.toString());
+      const change = round3(to - from);
+      if (change === 0) continue;
+      await tx.product.update({ where: { id: product.id }, data: { stockQty: to } });
+      await tx.stockMovement.create({
+        data: {
+          productId: product.id,
+          type: "ADJUSTMENT",
+          quantityChange: change,
+          reason: "Stock count",
+          userId: user.id,
+        },
+      });
+      changes.push({ name: product.name, from, to });
+    }
+
+    if (changes.length > 0) {
+      await recordAudit(
+        {
+          userId: user.id,
+          action: "stock.count",
+          entityType: "Product",
+          summary: `Stock count: ${changes.length} of ${counted.size} counted item(s) corrected`,
+          details: { changes },
+        },
+        tx
+      );
+    }
+  });
+
+  revalidatePath("/inventory");
+  revalidatePath("/inventory/count");
+  revalidatePath("/products");
+  revalidatePath("/pos");
+  revalidatePath("/");
+}

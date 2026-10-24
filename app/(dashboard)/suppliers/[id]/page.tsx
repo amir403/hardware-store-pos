@@ -27,7 +27,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 /** One line on the statement: a purchase coming in or money going out. */
 type LedgerRow = {
   key: string;
-  kind: "PURCHASE" | "PAYMENT";
+  kind: "PURCHASE" | "PAYMENT" | "RETURN";
   at: Date;
   title: string;
   subtitle: string;
@@ -68,6 +68,10 @@ export default async function SupplierAccountPage({
             },
             _count: { select: { items: true } },
             payments: { select: { amount: true } },
+            returns: {
+              orderBy: { createdAt: "asc" },
+              select: { id: true, amount: true, reason: true, createdAt: true },
+            },
           },
         },
         payments: {
@@ -123,6 +127,21 @@ export default async function SupplierAccountPage({
       settlement: toNum(purchase.paidAmount),
       impact: round2(toNum(purchase.total) - toNum(purchase.paidAmount)),
     });
+
+    // Goods sent back come straight off what we owe this supplier.
+    for (const ret of purchase.returns) {
+      rows.push({
+        key: `return-${ret.id}`,
+        kind: "RETURN",
+        at: ret.createdAt,
+        title: `Returned to supplier · ${purchaseLabel(purchase)}`,
+        subtitle: ret.reason ?? "Goods sent back",
+        href: `/purchases/${purchase.id}`,
+        charge: round2(-toNum(ret.amount)),
+        settlement: 0,
+        impact: round2(-toNum(ret.amount)),
+      });
+    }
   }
 
   for (const payment of supplier.payments) {
@@ -296,7 +315,7 @@ export default async function SupplierAccountPage({
                       <p className="text-xs text-zinc-400">{row.subtitle}</p>
                     </td>
                     <td className="px-4 py-3 text-right text-zinc-700">
-                      {row.charge > 0 ? formatMoney(row.charge, currency) : "—"}
+                      {row.charge !== 0 ? formatMoney(row.charge, currency) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-700">
                       {row.settlement > 0

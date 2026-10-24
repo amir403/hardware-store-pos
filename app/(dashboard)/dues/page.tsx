@@ -9,6 +9,8 @@ import { formatDate, formatMoney, round2, toNum } from "@/app/lib/format";
 import { getCustomerBalances, invoiceSettlement } from "@/app/lib/ledger";
 import { PageHeader } from "@/app/components/page-header";
 import { PrintButton } from "@/app/components/print-button";
+import { WhatsAppButton } from "@/app/components/whatsapp-button";
+import { duesReminderText } from "@/app/lib/whatsapp";
 
 export const metadata = { title: "Credits & dues" };
 
@@ -389,6 +391,23 @@ export default async function DuesPage() {
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                        <WhatsAppButton
+                          compact
+                          phone={account.phone}
+                          label="Remind"
+                          text={duesReminderText({
+                            storeName: settings.storeName,
+                            customerName: account.name,
+                            amount: formatMoney(account.outstanding, settings.currency),
+                            dueBy:
+                              account.invoices
+                                .map((i) => i.dueDate)
+                                .filter((d): d is Date => d !== null)
+                                .sort((a, b) => a.getTime() - b.getTime())
+                                .map((d) => formatDate(d))[0] ?? null,
+                          })}
+                        />
                         <Link
                           href={`/customers/${account.id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 print:hidden"
@@ -396,6 +415,7 @@ export default async function DuesPage() {
                           <PrinterIcon className="h-3.5 w-3.5" />
                           Ledger &amp; receive
                         </Link>
+                        </div>
                       </td>
                     </tr>
                   );

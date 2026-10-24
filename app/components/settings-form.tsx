@@ -16,6 +16,7 @@ export type SettingsDefaults = {
   receiptFooter: string;
   receiptPaper: string;
   labelSize: string;
+  cashierMaxDiscountPct: string;
 };
 
 const inputClass =
@@ -192,6 +193,29 @@ export function SettingsForm({
           <p className="text-xs text-zinc-400">
             Default label stock; it can be changed on the label page too.
           </p>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cashierMaxDiscountPct" className={labelClass}>
+            Cashier discount limit (%)
+          </label>
+          <input
+            id="cashierMaxDiscountPct"
+            name="cashierMaxDiscountPct"
+            type="number"
+            min="0"
+            max="100"
+            step="0.5"
+            defaultValue={defaults.cashierMaxDiscountPct}
+            className={inputClass}
+          />
+          <p className="text-xs text-zinc-400">
+            Cashiers cannot lower prices or discount a bill beyond this; a
+            manager or admin has to complete it.
+          </p>
+          {fieldError("cashierMaxDiscountPct") && (
+            <p className="text-xs text-red-600">{fieldError("cashierMaxDiscountPct")}</p>
+          )}
         </div>
       </div>
 

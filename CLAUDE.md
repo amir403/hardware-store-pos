@@ -14,13 +14,14 @@ Point-of-sale and back-office app for a single hardware store: POS terminal, pro
 npm run dev            # Next dev server on :3000
 npm run build
 npm run lint           # eslint (flat config, next core-web-vitals + typescript)
+npm test               # node:test unit tests for pure money/pricing helpers (app/**/*.test.ts, run via tsx)
 npm run db:start       # start local Postgres via `prisma dev` (detached); db:stop / db:ls
 npm run db:migrate     # prisma migrate dev
 npm run db:seed        # seed settings, users (admin/manager/cashier @store.com), sample data
 npx prisma generate    # regenerate client into app/generated/prisma (gitignored — required after clone or schema change)
 ```
 
-There is no test framework. Verification is done with standalone scripts run via `tsx` against the real database:
+Unit tests (`npm test`) cover the pure helpers only — ledger/payables settlement, return credit, cashier pricing limits, daily numbering. Run one file with `npx tsx --test app/lib/money.test.ts`. Anything touching the database is checked with standalone scripts run via `tsx` against the real database:
 
 - `npm run db:check` — connectivity and row counts
 - `npm run check:ledger` — prints customer balances/receivables from `app/lib/ledger.ts`

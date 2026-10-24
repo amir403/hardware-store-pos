@@ -2,6 +2,19 @@ import { prisma } from "@/app/lib/prisma";
 import { round2, toNum } from "@/app/lib/format";
 import { getExpenseTotal } from "@/app/lib/expenses";
 
+/**
+ * Cost of one unit as sold: the snapshot taken at sale time, or the product's
+ * current cost for a line that has none (e.g. sold before costs were recorded).
+ */
+export function unitCost(item: {
+  costPrice?: unknown;
+  saleItem?: { costPrice: unknown } | null;
+  product: { costPrice: unknown } | null;
+}): number {
+  const snapshot = item.costPrice ?? item.saleItem?.costPrice ?? null;
+  return toNum(snapshot ?? item.product?.costPrice);
+}
+
 export type ProfitSummary = {
   /** Sales less returns. */
   revenue: number;
@@ -14,8 +27,7 @@ export type ProfitSummary = {
 
 /**
  * Profit for [from, to). Uses the same rules as the reports page: returns count
- * on the day the goods came back, and cost is each product's current cost
- * price (sale lines keep no cost snapshot), so this is an estimate.
+ * on the day the goods came back, and cost is the snapshot on each sale line.
  */
 export async function getProfitSummary(
   from: Date,
@@ -28,7 +40,11 @@ export async function getProfitSummary(
         total: true,
         taxAmount: true,
         items: {
-          select: { quantity: true, product: { select: { costPrice: true } } },
+          select: {
+            quantity: true,
+            costPrice: true,
+            product: { select: { costPrice: true } },
+          },
         },
       },
     }),
@@ -38,20 +54,19 @@ export async function getProfitSummary(
         amount: true,
         taxAmount: true,
         items: {
-          select: { quantity: true, product: { select: { costPrice: true } } },
+          select: {
+            quantity: true,
+            saleItem: { select: { costPrice: true } },
+            product: { select: { costPrice: true } },
+          },
         },
       },
     }),
     getExpenseTotal(from, to),
   ]);
 
-  const costOf = (
-    items: { quantity: unknown; product: { costPrice: unknown } | null }[]
-  ) =>
-    items.reduce(
-      (sum, item) => sum + toNum(item.quantity) * toNum(item.product?.costPrice),
-      0
-    );
+  const costOf = (items: (Parameters<typeof unitCost>[0] & { quantity: unknown })[]) =>
+    items.reduce((sum, item) => sum + toNum(item.quantity) * unitCost(item), 0);
 
   let revenue = 0;
   let tax = 0;

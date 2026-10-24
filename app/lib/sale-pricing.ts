@@ -57,6 +57,11 @@ export type SaleLineInput = {
 
 export type PricedLine = SaleLineInput & {
   productName: string;
+  /** Product cost right now, snapshotted onto the sale line. */
+  costPrice: number | null;
+  /** Catalogue prices, for checking what a cashier changed. */
+  listPrice: number;
+  wholesalePrice: number | null;
   lineTotal: number;
   trackStock: boolean;
 };
@@ -122,6 +127,10 @@ export async function priceSaleLines(
       unitPrice: round2(item.unitPrice),
       discount: round2(item.discount),
       lineTotal,
+      costPrice: product.costPrice === null ? null : Number(product.costPrice.toString()),
+      listPrice: Number(product.price.toString()),
+      wholesalePrice:
+        product.wholesalePrice === null ? null : Number(product.wholesalePrice.toString()),
       trackStock: product.trackStock,
     };
   });
@@ -132,4 +141,50 @@ export async function priceSaleLines(
     : round2(subtotal - discountAmount + taxAmount);
 
   return { lines, subtotal, taxAmount, discountAmount, total };
+}
+
+/**
+ * What stops a CASHIER completing this bill, or null if nothing does. A cashier
+ * may not sell below the customer's catalogue price, and line plus bill
+ * discounts together may not exceed `maxDiscountPct` of the bill's list value.
+ * Managers and admins are not checked.
+ */
+export function cashierPricingProblem(
+  lines: Pick<PricedLine, "productName" | "quantity" | "unitPrice" | "discount" | "listPrice" | "wholesalePrice">[],
+  billDiscount: number,
+  opts: { wholesale: boolean; maxDiscountPct: number }
+): string | null {
+  let listValue = 0;
+  let discounts = billDiscount;
+  for (const line of lines) {
+    const list =
+      opts.wholesale && line.wholesalePrice !== null ? line.wholesalePrice : line.listPrice;
+    if (line.unitPrice < list) {
+      return `Only a manager can sell "${line.productName}" below ${list}.`;
+    }
+    listValue += line.quantity * line.unitPrice;
+    discounts += line.discount;
+  }
+  const cap = round2((listValue * opts.maxDiscountPct) / 100);
+  if (round2(discounts) > cap) {
+    return `Discount ${round2(discounts)} is over the cashier limit of ${opts.maxDiscountPct}% (${cap}). Ask a manager to complete this bill.`;
+  }
+  return null;
+}
+
+/**
+ * Value credited for returning `quantity` units of a line worth `lineValue`
+ * for `soldQty` units. Pro rata, except that returning the last units credits
+ * whatever value is left, so rounding never strands a few paisa.
+ */
+export function returnCredit(opts: {
+  lineValue: number;
+  soldQty: number;
+  creditedSoFar: number;
+  quantity: number;
+  remaining: number;
+}): number {
+  const valueLeft = round2(Math.max(0, opts.lineValue - opts.creditedSoFar));
+  if (opts.quantity >= opts.remaining) return valueLeft;
+  return round2(Math.min(valueLeft, (opts.lineValue * opts.quantity) / opts.soldQty));
 }

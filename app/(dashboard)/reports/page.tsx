@@ -17,6 +17,7 @@ import { getSettings } from "@/app/lib/settings";
 import { formatDate, formatMoney, formatQty, round2, toNum } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 import { getExpenseTotal } from "@/app/lib/expenses";
+import { unitCost } from "@/app/lib/profit";
 
 export const metadata = { title: "Reports" };
 
@@ -92,6 +93,7 @@ export default async function ReportsPage({
           productName: true,
           quantity: true,
           lineTotal: true,
+          costPrice: true,
           product: {
             select: {
               costPrice: true,
@@ -122,7 +124,7 @@ export default async function ReportsPage({
         select: {
           quantity: true,
           amount: true,
-          saleItem: { select: { productName: true } },
+          saleItem: { select: { productName: true, costPrice: true } },
           product: {
             select: {
               costPrice: true,
@@ -155,21 +157,10 @@ export default async function ReportsPage({
       returns.reduce((sum, r) => sum + toNum(r.taxAmount), 0)
   );
 
-  // Cost is taken from each product's CURRENT cost price: SaleItem keeps the
-  // sale price but no cost snapshot, so this is a good estimate, not a filing
-  // figure. A line whose product has no cost recorded counts as free stock.
-  const costOf = (
-    items: {
-      quantity: unknown;
-      product: { costPrice: unknown } | null;
-    }[]
-  ) =>
-    round2(
-      items.reduce(
-        (sum, item) => sum + toNum(item.quantity) * toNum(item.product?.costPrice),
-        0
-      )
-    );
+  // Cost is the snapshot taken when each line was sold. A line with no cost
+  // recorded anywhere counts as free stock.
+  const costOf = (items: (Parameters<typeof unitCost>[0] & { quantity: unknown })[]) =>
+    round2(items.reduce((sum, item) => sum + toNum(item.quantity) * unitCost(item), 0));
 
   // Returned goods go back on the shelf, so their cost comes off too.
   const cost = round2(
@@ -273,7 +264,7 @@ export default async function ReportsPage({
       const itemProfit = round2(
         lineTotal -
           saleTax * share -
-          toNum(item.quantity) * toNum(item.product?.costPrice)
+          toNum(item.quantity) * unitCost(item)
       );
       const qty = toNum(item.quantity);
 
@@ -329,7 +320,7 @@ export default async function ReportsPage({
       const itemProfit = round2(
         value -
           retTax * share -
-          toNum(item.quantity) * toNum(item.product?.costPrice)
+          toNum(item.quantity) * unitCost(item)
       );
       const name = item.saleItem.productName;
       const category = item.product?.category?.name ?? "Uncategorised";
@@ -377,7 +368,7 @@ export default async function ReportsPage({
     {
       label: "Gross profit",
       value: formatMoney(grossProfit, currency),
-      sub: `${margin}% margin · est. from current cost prices`,
+      sub: `${margin}% margin · at cost when sold`,
       icon: CoinsIcon,
       tone: grossProfit >= 0 ? "good" : "warn",
     },

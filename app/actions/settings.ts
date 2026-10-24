@@ -36,6 +36,10 @@ const settingsSchema = z.object({
     .transform((v) => (v === "" ? null : v)),
   receiptPaper: z.enum(Object.keys(RECEIPT_PAPERS) as [string, ...string[]]),
   labelSize: z.enum(Object.keys(LABEL_SIZES) as [string, ...string[]]),
+  cashierMaxDiscountPct: z.coerce
+    .number({ message: "Discount limit must be a number." })
+    .min(0, "Discount limit cannot be negative.")
+    .max(100, "Discount limit must be 100 or less."),
 });
 
 export async function updateSettingsAction(
@@ -57,6 +61,7 @@ export async function updateSettingsAction(
     receiptFooter: formData.get("receiptFooter") ?? "",
     receiptPaper: formData.get("receiptPaper") ?? "80mm",
     labelSize: formData.get("labelSize") ?? "50x25",
+    cashierMaxDiscountPct: formData.get("cashierMaxDiscountPct") ?? "10",
   });
 
   if (!parsed.success) {
@@ -73,6 +78,7 @@ export async function updateSettingsAction(
     receiptFooter: parsed.data.receiptFooter,
     receiptPaper: parsed.data.receiptPaper,
     labelSize: parsed.data.labelSize,
+    cashierMaxDiscountPct: round2(parsed.data.cashierMaxDiscountPct),
   };
 
   try {

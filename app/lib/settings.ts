@@ -18,6 +18,7 @@ export type StoreSettings = {
   receiptFooter: string | null;
   receiptPaper: ReceiptPaper;
   labelSize: LabelSize;
+  cashierMaxDiscountPct: number;
 };
 
 export const getSettings = cache(async (): Promise<StoreSettings> => {
@@ -36,6 +37,7 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
       receiptFooter: null,
       receiptPaper: "80mm",
       labelSize: "50x25",
+      cashierMaxDiscountPct: 10,
     };
   }
 
@@ -49,5 +51,6 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
     receiptFooter: settings.receiptFooter,
     receiptPaper: isReceiptPaper(settings.receiptPaper) ? settings.receiptPaper : "80mm",
     labelSize: isLabelSize(settings.labelSize) ? settings.labelSize : "50x25",
+    cashierMaxDiscountPct: toNum(settings.cashierMaxDiscountPct),
   };
 });

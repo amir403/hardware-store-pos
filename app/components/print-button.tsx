@@ -1,8 +1,10 @@
 "use client";
 
 import { PrinterIcon } from "lucide-react";
+import { useT } from "@/app/components/lang";
 
 export function PrintButton({ label = "Print receipt" }: { label?: string }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -10,7 +12,7 @@ export function PrintButton({ label = "Print receipt" }: { label?: string }) {
       className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 print:hidden"
     >
       <PrinterIcon className="h-4 w-4" />
-      {label}
+      {t(label)}
     </button>
   );
 }

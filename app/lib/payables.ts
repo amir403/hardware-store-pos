@@ -8,7 +8,7 @@ import { round2, toNum } from "@/app/lib/format";
  * on the Supplier row, so deleting a mistaken payment fixes every figure at once.
  */
 export type SupplierBalance = {
-  /** Sum of purchase totals from this supplier. */
+  /** Sum of purchase totals from this supplier, less goods sent back. */
   purchased: number;
   /** Paid at the time of purchase plus every payment recorded afterwards. */
   paid: number;
@@ -25,17 +25,25 @@ const ZERO: SupplierBalance = {
   billDue: 0,
 };
 
-/** What has been paid against one purchase, and what is still owed on it. */
+/**
+ * What has been paid against one purchase, what came back to the supplier, and
+ * what is still owed on it.
+ */
 export function purchaseSettlement(purchase: {
   total: unknown;
   paidAmount: unknown;
   payments: { amount: unknown }[];
-}): { paid: number; due: number } {
+  returns: { amount: unknown }[];
+}): { paid: number; returned: number; netTotal: number; due: number } {
   const paid = round2(
     toNum(purchase.paidAmount) +
       purchase.payments.reduce((sum, p) => sum + toNum(p.amount), 0)
   );
-  return { paid, due: round2(toNum(purchase.total) - paid) };
+  const returned = round2(
+    purchase.returns.reduce((sum, r) => sum + toNum(r.amount), 0)
+  );
+  const netTotal = round2(toNum(purchase.total) - returned);
+  return { paid, returned, netTotal, due: round2(netTotal - paid) };
 }
 
 export async function getSupplierBalances(
@@ -53,6 +61,7 @@ export async function getSupplierBalances(
       total: true,
       paidAmount: true,
       payments: { select: { amount: true } },
+      returns: { select: { amount: true } },
     },
   });
 
@@ -74,8 +83,8 @@ export async function getSupplierBalances(
       : undefined;
     if (!balance) continue;
 
-    const { paid, due } = purchaseSettlement(purchase);
-    balance.purchased = round2(balance.purchased + toNum(purchase.total));
+    const { paid, netTotal, due } = purchaseSettlement(purchase);
+    balance.purchased = round2(balance.purchased + netTotal);
     balance.paid = round2(balance.paid + paid);
     // Overpaying one bill leaves an advance, it never shows as a negative due.
     balance.billDue = round2(balance.billDue + Math.max(0, due));

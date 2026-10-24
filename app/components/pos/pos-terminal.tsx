@@ -22,6 +22,7 @@ import { useToast } from "@/app/components/toast";
 import { CustomerPicker } from "@/app/components/pos/customer-picker";
 import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
+import { useT } from "@/app/components/lang";
 
 export type PosProduct = {
   id: string;
@@ -109,6 +110,7 @@ export function PosTerminal({
   pricesIncludeTax,
   heldSales,
   initialHeldId = null,
+  canEditPrices = true,
 }: {
   products: PosProduct[];
   customers: PosCustomer[];
@@ -117,10 +119,13 @@ export function PosTerminal({
   heldSales: PosHeldSale[];
   /** A held bill to open straight into the cart, e.g. a converted quotation. */
   initialHeldId?: string | null;
+  /** Cashiers sell at list price; only managers may change it. */
+  canEditPrices?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const toast = useToast();
+  const t = useT();
 
   /** Cart lines for a parked bill, re-reading live product data. */
   function linesFromHeld(held: PosHeldSale): CartLine[] {
@@ -347,7 +352,7 @@ export function PosTerminal({
   function holdBill() {
     setError(null);
     if (cart.length === 0) {
-      setError("The cart is empty.");
+      setError(t("The cart is empty."));
       return;
     }
 
@@ -398,7 +403,7 @@ export function PosTerminal({
   function saveQuotation() {
     setError(null);
     if (cart.length === 0) {
-      setError("The cart is empty.");
+      setError(t("The cart is empty."));
       return;
     }
 
@@ -426,13 +431,13 @@ export function PosTerminal({
   function checkout() {
     setError(null);
     if (cart.length === 0) {
-      setError("The cart is empty.");
+      setError(t("The cart is empty."));
       return;
     }
     // Checked here too so the cashier sees the reason instead of a server error.
     if (isCreditSale && !customerId) {
       setError(
-        "Credit needs an account customer. Select a customer, or collect the full amount."
+        t("Credit needs an account customer. Select a customer, or collect the full amount.")
       );
       return;
     }
@@ -536,7 +541,7 @@ export function PosTerminal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Scan barcode or search product name / SKU, then press Enter…"
+            placeholder={t("Scan barcode or search product name / SKU, then press Enter…")}
             className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
           />
         </div>
@@ -548,7 +553,7 @@ export function PosTerminal({
               <kbd className="rounded border border-zinc-300 bg-white px-1.5 py-0.5 font-mono text-[10px] font-medium text-zinc-700 shadow-sm">
                 {s.keys}
               </kbd>
-              {s.label}
+              {t(s.label)}
             </span>
           ))}
         </div>
@@ -566,7 +571,7 @@ export function PosTerminal({
                     : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
                 }`}
               >
-                {c || "All"}
+                {c || t("All")}
               </button>
             ))}
           </div>
@@ -590,9 +595,9 @@ export function PosTerminal({
                     {product.name}
                   </p>
                   <p className="truncate text-xs text-zinc-400">
-                    {product.sku ?? "No SKU"}
-                    {product.trackStock && ` · ${product.stockQty} ${product.unit} in stock`}
-                    {!product.trackStock && " · service"}
+                    {product.sku ?? t("No SKU")}
+                    {product.trackStock && ` · ${product.stockQty} ${product.unit} ${t("in stock")}`}
+                    {!product.trackStock && ` · ${t("service")}`}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -601,7 +606,7 @@ export function PosTerminal({
                   </p>
                   {inCart && (
                     <p className="text-[11px] font-medium text-emerald-600">
-                      ×{inCart.quantity} in cart
+                      ×{inCart.quantity} {t("in cart")}
                     </p>
                   )}
                 </div>
@@ -611,7 +616,7 @@ export function PosTerminal({
           {results.length === 0 && (
             <div className="col-span-full rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-400">
               <SearchIcon className="mx-auto mb-2 h-5 w-5" />
-              No products match “{query}”.
+              {t("No products match")} “{query}”.
             </div>
           )}
         </div>
@@ -620,9 +625,9 @@ export function PosTerminal({
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
             <h2 className="text-sm font-semibold text-zinc-900">
-              Cart
+              {t("Cart")}
               <span className="ml-2 text-xs font-normal text-zinc-400">
-                {cart.length} item{cart.length === 1 ? "" : "s"}
+                {cart.length} {t(cart.length === 1 ? "item" : "items")}
               </span>
             </h2>
             {cart.length > 0 && (
@@ -631,24 +636,24 @@ export function PosTerminal({
                 onClick={clearCart}
                 className="text-xs font-medium text-zinc-500 hover:text-red-600"
               >
-                Clear cart
+                {t("Clear cart")}
               </button>
             )}
           </div>
 
           {cart.length === 0 ? (
             <div className="px-4 py-12 text-center text-sm text-zinc-400">
-              Scan or click a product to start a sale.
+              {t("Scan or click a product to start a sale.")}
             </div>
           ) : (
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                  <th className="px-3 py-2 font-medium">Item</th>
-                  <th className="px-2 py-2 font-medium">Qty</th>
-                  <th className="px-2 py-2 font-medium">Price</th>
-                  <th className="px-2 py-2 font-medium">Disc.</th>
-                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 font-medium">{t("Item")}</th>
+                  <th className="px-2 py-2 font-medium">{t("Qty")}</th>
+                  <th className="px-2 py-2 font-medium">{t("Price")}</th>
+                  <th className="px-2 py-2 font-medium">{t("Disc.")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("Total")}</th>
                   <th className="px-2 py-2" />
                 </tr>
               </thead>
@@ -671,11 +676,11 @@ export function PosTerminal({
                         </p>
                         {overStock ? (
                           <p className="text-[11px] font-medium text-red-600">
-                            only {line.stockQty} {line.unit} available
+                            {t("only {n} available", { n: `${line.stockQty} ${line.unit}` })}
                           </p>
                         ) : (
                           <p className="text-[11px] text-zinc-400">
-                            per {line.unit}
+                            {t("per")} {line.unit}
                           </p>
                         )}
                       </td>
@@ -723,6 +728,8 @@ export function PosTerminal({
                           min="0"
                           step="0.01"
                           value={line.unitPrice}
+                          readOnly={!canEditPrices}
+                          title={canEditPrices ? undefined : t("Only a manager can change prices")}
                           onChange={(e) =>
                             updateLine(line.productId, {
                               unitPrice: Number(e.target.value),
@@ -771,9 +778,9 @@ export function PosTerminal({
             <div className="flex items-center gap-2 border-b border-amber-100 bg-amber-50 px-4 py-3">
               <PauseCircleIcon className="h-4 w-4 text-amber-700" />
               <h2 className="text-sm font-semibold text-amber-900">
-                Held bills
+                {t("Held bills")}
                 <span className="ml-2 text-xs font-normal text-amber-700">
-                  {heldSales.length} parked
+                  {heldSales.length} {t("parked")}
                 </span>
               </h2>
             </div>
@@ -790,13 +797,13 @@ export function PosTerminal({
                       {held.invoiceNo}
                       {held.id === heldSaleId && (
                         <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                          in cart
+                          {t("in cart")}
                         </span>
                       )}
                     </p>
                     <p className="truncate text-xs text-zinc-400">
                       {held.itemCount} item{held.itemCount === 1 ? "" : "s"} ·{" "}
-                      {held.customerName ?? "Walk-in"} ·{" "}
+                      {held.customerName ?? t("Walk-in")} ·{" "}
                       {formatDateTime(held.createdAt)}
                     </p>
                     {held.note && (
@@ -815,7 +822,7 @@ export function PosTerminal({
                       className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-xs font-medium text-white transition hover:bg-amber-500"
                     >
                       <RotateCcwIcon className="h-3.5 w-3.5" />
-                      Recall
+                      {t("Recall")}
                     </button>
                     <ConfirmForm
                       action={discardHeldSaleAction}
@@ -825,7 +832,7 @@ export function PosTerminal({
                       <input type="hidden" name="id" value={held.id} />
                       <button
                         type="submit"
-                        title="Discard held bill"
+                        title={t("Discard held bill")}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2Icon className="h-3.5 w-3.5" />
@@ -844,7 +851,7 @@ export function PosTerminal({
         id="pos-checkout"
         className="flex h-fit scroll-mt-20 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 xl:sticky xl:top-6"
       >
-        <h2 className="text-sm font-semibold text-zinc-900">Checkout</h2>
+        <h2 className="text-sm font-semibold text-zinc-900">{t("Checkout")}</h2>
 
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -855,11 +862,11 @@ export function PosTerminal({
         {/* Totals */}
         <div className="flex flex-col gap-1.5 border-b border-zinc-100 pb-4 text-sm">
           <div className="flex justify-between text-zinc-500">
-            <span>Subtotal</span>
+            <span>{t("Subtotal")}</span>
             <span>{formatMoney(totals.subtotal, currency)}</span>
           </div>
           <div className="flex items-center justify-between text-zinc-500">
-            <span>Sale discount</span>
+            <span>{t("Sale discount")}</span>
             <input
               type="number"
               min="0"
@@ -871,12 +878,12 @@ export function PosTerminal({
           </div>
           {totals.taxAmount > 0 && (
             <div className="flex justify-between text-zinc-500">
-              <span>Tax {pricesIncludeTax ? "(included)" : ""}</span>
+              <span>{t("Tax")} {pricesIncludeTax ? t("(included)") : ""}</span>
               <span>{formatMoney(totals.taxAmount, currency)}</span>
             </div>
           )}
           <div className="flex justify-between border-t border-zinc-100 pt-2 text-base font-semibold text-zinc-900">
-            <span>Total</span>
+            <span>{t("Total")}</span>
             <span>{formatMoney(totals.total, currency)}</span>
           </div>
         </div>
@@ -885,7 +892,7 @@ export function PosTerminal({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">
-              Customer
+              {t("Customer")}
             </label>
             <CustomerPicker
               customers={customerList}
@@ -903,14 +910,14 @@ export function PosTerminal({
             />
             {isWholesale && (
               <p className="text-xs font-medium text-sky-700">
-                Wholesale prices applied.
+                {t("Wholesale prices applied.")}
               </p>
             )}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">
-              Payment method
+              {t("Payment method")}
             </label>
             <select
               value={paymentMethod}
@@ -919,7 +926,7 @@ export function PosTerminal({
             >
               {PAYMENT_METHODS.map((m) => (
                 <option key={m.value} value={m.value}>
-                  {m.label}
+                  {t(m.label)}
                 </option>
               ))}
             </select>
@@ -928,7 +935,7 @@ export function PosTerminal({
           <div className="flex gap-3">
             <div className="flex flex-1 flex-col gap-1.5">
               <label className="text-sm font-medium text-zinc-700">
-                Amount paid
+                {t("Amount paid")}
               </label>
               <input
                 type="number"
@@ -942,7 +949,7 @@ export function PosTerminal({
             </div>
             <div className="flex flex-1 flex-col gap-1.5">
               <label className="text-sm font-medium text-zinc-700">
-                {isCreditSale ? "Balance due" : "Change"}
+                {isCreditSale ? t("Balance due") : t("Change")}
               </label>
               <div
                 className={`flex h-9 items-center justify-end rounded-lg px-2.5 text-sm font-semibold ${
@@ -959,13 +966,13 @@ export function PosTerminal({
           {isCreditSale && (
             <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
               <p className="text-xs font-medium text-amber-900">
-                {formatMoney(balanceDue, currency)} goes on{" "}
+                {formatMoney(balanceDue, currency)} {t("goes on")}{" "}
                 {customerList.find((c) => c.id === customerId)?.name ??
-                  "this account"}
-                &apos;s ledger.
+                  "this account"}{" "}
+                {t("'s ledger.")}
               </p>
               <label className="text-xs font-medium text-amber-800">
-                Payable by (optional)
+                {t("Payable by (optional)")}
                 <input
                   type="date"
                   value={dueDate}
@@ -978,14 +985,14 @@ export function PosTerminal({
 
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-zinc-700">
-              Note (optional)
+              {t("Note (optional)")}
             </label>
             <input
               type="text"
               maxLength={300}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. delivery arranged"
+              placeholder={t("e.g. delivery arranged")}
               className={inputClass}
             />
           </div>
@@ -993,7 +1000,7 @@ export function PosTerminal({
 
         {heldSaleId && (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-            Recalled from a held bill — completing this sale replaces it.
+            {t("Recalled from a held bill — completing this sale replaces it.")}
           </p>
         )}
 
@@ -1004,10 +1011,10 @@ export function PosTerminal({
           className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending
-            ? "Processing…"
+            ? `${t("Processing")}…`
             : isCreditSale
-              ? `Complete on credit · ${formatMoney(balanceDue, currency)} due`
-              : `Complete sale · ${formatMoney(totals.total, currency)}`}
+              ? `${t("Complete on credit")} · ${formatMoney(balanceDue, currency)} ${t("due")}`
+              : `${t("Complete sale")} · ${formatMoney(totals.total, currency)}`}
         </button>
 
         <button
@@ -1017,7 +1024,7 @@ export function PosTerminal({
           className="flex h-10 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 text-sm font-medium text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <PauseCircleIcon className="h-4 w-4" />
-          {heldSaleId ? "Update held bill" : "Hold bill"}
+          {heldSaleId ? t("Update held bill") : t("Hold bill")}
         </button>
 
         <button
@@ -1027,7 +1034,7 @@ export function PosTerminal({
           className="flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <FileTextIcon className="h-4 w-4" />
-          Save as quotation
+          {t("Save as quotation")}
         </button>
       </div>
 
@@ -1040,14 +1047,13 @@ export function PosTerminal({
         <div className="flex items-center gap-3">
           <a href="#pos-checkout" className="min-w-0 flex-1">
             <p className="text-xs text-zinc-500">
-              {cart.length} item{cart.length === 1 ? "" : "s"} · tap for payment
-              details
+              {cart.length} {t(cart.length === 1 ? "item" : "items")} · {t("tap for payment details")}
             </p>
             <p className="truncate text-lg font-semibold text-zinc-900">
               {formatMoney(totals.total, currency)}
               {isCreditSale && (
                 <span className="ml-2 text-xs font-medium text-amber-700">
-                  {formatMoney(balanceDue, currency)} on credit
+                  {formatMoney(balanceDue, currency)} {t("on credit")}
                 </span>
               )}
             </p>
@@ -1058,7 +1064,7 @@ export function PosTerminal({
             onClick={checkout}
             className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPending ? "Processing…" : "Complete"}
+            {isPending ? `${t("Processing")}…` : t("Complete")}
           </button>
         </div>
       </div>

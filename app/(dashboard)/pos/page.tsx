@@ -4,11 +4,13 @@ import { toNum } from "@/app/lib/format";
 import Link from "next/link";
 import { PageHeader } from "@/app/components/page-header";
 import { getOpenShift } from "@/app/lib/shifts";
+import { getCurrentUser } from "@/app/lib/auth";
 import {
   PosTerminal,
   type PosHeldSale,
   type PosProduct,
 } from "@/app/components/pos/pos-terminal";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "New Sale" };
 
@@ -17,7 +19,7 @@ export default async function PosPage({
 }: {
   searchParams: Promise<{ recall?: string }>;
 }) {
-  const { recall } = await searchParams;
+  const [{ recall }, user, t] = await Promise.all([searchParams, getCurrentUser(), getT()]);
   const [settings, products, customers, heldRows, openShift] = await Promise.all([
     getSettings(),
     prisma.product.findMany({
@@ -76,7 +78,7 @@ export default async function PosPage({
   return (
     <>
       <PageHeader
-        title="New Sale"
+        title={t("New Sale")}
         description={settings.storeName}
       />
       {/* Selling is never blocked — but cash taken with no shift open cannot be
@@ -84,14 +86,13 @@ export default async function PosPage({
       {!openShift && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span>
-            No shift is open. Open one so today&apos;s cash can be counted at
-            closing.
+            {t("No shift is open. Open one so today's cash can be counted at closing.")}
           </span>
           <Link
             href="/shifts"
             className="inline-flex h-8 items-center rounded-lg bg-amber-600 px-3 text-xs font-medium text-white transition hover:bg-amber-500"
           >
-            Open shift
+            {t("Open shift")}
           </Link>
         </div>
       )}
@@ -103,6 +104,7 @@ export default async function PosPage({
         pricesIncludeTax={settings.pricesIncludeTax}
         heldSales={heldSales}
         initialHeldId={recall ?? null}
+        canEditPrices={user.role !== "CASHIER"}
       />
     </>
   );

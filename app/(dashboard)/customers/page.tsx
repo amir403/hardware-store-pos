@@ -13,6 +13,7 @@ import {
 } from "@/app/actions/parties";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { ListSearch } from "@/app/components/list-search";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Customers" };
 
@@ -21,7 +22,7 @@ export default async function CustomersPage({
 }: {
   searchParams: Promise<{ edit?: string; q?: string }>;
 }) {
-  const [settings, params] = await Promise.all([getSettings(), searchParams]);
+  const [settings, params, t] = await Promise.all([getSettings(), searchParams, getT()]);
 
   const editId = params.edit;
   const q = params.q?.trim() ?? "";
@@ -65,8 +66,8 @@ export default async function CustomersPage({
   return (
     <>
       <PageHeader
-        title="Customers"
-        description={`${customers.length} customer${customers.length === 1 ? "" : "s"}${q ? ` matching "${q}"` : ""} · ${formatMoney(totalReceivable, settings.currency)} outstanding`}
+        title={t("Customers")}
+        description={`${customers.length} customer${customers.length === 1 ? "" : "s"}${q ? ` matching "${q}"` : ""} · ${formatMoney(totalReceivable, settings.currency)}  ${t("Outstanding").toLowerCase()}`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -75,17 +76,17 @@ export default async function CustomersPage({
           <ListSearch
             action="/customers"
             defaultValue={q}
-            placeholder="Search by name, phone or email…"
+            placeholder={t("Search by name, phone or email…")}
           />
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 text-right font-medium">Sales</th>
-                  <th className="px-4 py-3 text-right font-medium">Balance</th>
-                  <th className="px-4 py-3 font-medium">Last purchase</th>
+                  <th className="px-4 py-3 font-medium">{t("Customer")}</th>
+                  <th className="px-4 py-3 font-medium">{t("Phone")}</th>
+                  <th className="px-4 py-3 text-right font-medium">{t("Sales")}</th>
+                  <th className="px-4 py-3 text-right font-medium">{t("Balance")}</th>
+                  <th className="px-4 py-3 font-medium">{t("Last purchase")}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -153,7 +154,7 @@ export default async function CustomersPage({
                       <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/customers?edit=${customer.id}`}
-                          title="Edit"
+                          title={t("Edit")}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -172,7 +173,7 @@ export default async function CustomersPage({
                               />
                               <button
                                 type="submit"
-                                title="Delete"
+                                title={t("Delete")}
                                 className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
                               >
                                 <Trash2Icon className="h-4 w-4" />
@@ -193,7 +194,7 @@ export default async function CustomersPage({
         <div className="rounded-xl border border-zinc-200 bg-white p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-900">
-              {editing ? "Edit customer" : "New customer"}
+              {editing ? t("Edit customer") : t("New customer")}
             </h2>
             {editing && (
               <Link
@@ -208,7 +209,7 @@ export default async function CustomersPage({
           <PartyForm
             key={editing?.id ?? "new"}
             action={editing ? updateCustomerAction : createCustomerAction}
-            submitLabel={editing ? "Save changes" : "Add customer"}
+            submitLabel={editing ? t("Save changes") : t("Add customer")}
             successMessage={editing ? "Customer updated" : "Customer added"}
             showCreditLimit
             defaults={

@@ -46,6 +46,7 @@ export default async function PurchasesPage({
       user: { select: { name: true } },
       _count: { select: { items: true } },
       payments: { select: { amount: true } },
+      returns: { select: { amount: true } },
     },
   });
 

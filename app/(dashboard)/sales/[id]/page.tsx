@@ -24,6 +24,8 @@ import { RefundButton } from "@/app/components/sales/refund-button";
 import { VoidButton } from "@/app/components/sales/void-button";
 import { FlashToast } from "@/app/components/toast";
 import { ThermalReceipt } from "@/app/components/thermal-receipt";
+import { WhatsAppButton } from "@/app/components/whatsapp-button";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Sale detail" };
 
@@ -68,7 +70,7 @@ export default async function SaleDetailPage({
   const isNew = sp.new === "1";
   const justReturned = sp.returned ?? null;
 
-  const [sale, settings, user] = await Promise.all([
+  const [sale, settings, user, t] = await Promise.all([
     prisma.sale.findUnique({
       where: { id },
       include: {
@@ -96,6 +98,7 @@ export default async function SaleDetailPage({
     }),
     getSettings(),
     getCurrentUser(),
+    getT(),
   ]);
 
   if (!sale) notFound();
@@ -151,17 +154,34 @@ export default async function SaleDetailPage({
             href="/sales"
             className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> Back to sales
+            <ArrowLeftIcon className="h-4 w-4" /> {t("Back to sales")}
           </Link>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <PrintButton />
+            <WhatsAppButton
+              phone={sale.customer?.phone}
+              text={
+                `${settings.storeName}\nBill ${sale.invoiceNo} · ${formatDateTime(sale.createdAt)}\n\n` +
+                sale.items
+                  .map(
+                    (item) =>
+                      `${item.productName}\n  ${formatQty(toNum(item.quantity))} × ${formatMoney(toNum(item.unitPrice), currency)} = ${formatMoney(toNum(item.lineTotal), currency)}`
+                  )
+                  .join("\n") +
+                `\n\nTotal: ${formatMoney(returned > 0 ? netTotal : toNum(sale.total), currency)}` +
+                `\nPaid: ${formatMoney(toNum(sale.paidAmount), currency)}` +
+                (refunded > 0 ? `\nWapas diya: ${formatMoney(refunded, currency)}` : "") +
+                (balanceDue > 0 ? `\nBaqi: ${formatMoney(balanceDue, currency)}` : "") +
+                (settings.receiptFooter ? `\n\n${settings.receiptFooter}` : "")
+              }
+            />
             {canReturn && (
               <Link
                 href={`/sales/${sale.id}/return`}
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
               >
                 <PackageOpenIcon className="h-4 w-4" />
-                Return items
+                {t("Return items")}
               </Link>
             )}
             {canRefund && (
@@ -178,7 +198,7 @@ export default async function SaleDetailPage({
               href="/pos"
               className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
             >
-              New sale
+              {t("New sale")}
             </Link>
           </div>
         </div>
@@ -258,37 +278,37 @@ export default async function SaleDetailPage({
           {/* Invoice meta */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-b border-dashed border-zinc-200 py-4 text-xs">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Invoice</span>
+              <span className="text-zinc-500">{t("Invoice")}</span>
               <span className="font-semibold text-zinc-900">
                 {sale.invoiceNo}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Date</span>
+              <span className="text-zinc-500">{t("Date")}</span>
               <span className="text-zinc-900">
                 {formatDateTime(sale.createdAt)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Cashier</span>
+              <span className="text-zinc-500">{t("Cashier")}</span>
               <span className="text-zinc-900">{sale.user.name ?? "—"}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Customer</span>
+              <span className="text-zinc-500">{t("Customer")}</span>
               <span className="text-zinc-900">
-                {sale.customer?.name ?? "Walk-in"}
+                {sale.customer?.name ?? t("Walk-in")}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Payment</span>
+              <span className="text-zinc-500">{t("Payment")}</span>
               <span className="text-zinc-900">
-                {PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod}
+                {t(PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Status</span>
+              <span className="text-zinc-500">{t("Status")}</span>
               <span className="text-zinc-900">
-                {STATUS_LABELS[sale.status] ?? sale.status}
+                {t(STATUS_LABELS[sale.status] ?? sale.status)}
               </span>
             </div>
           </div>
@@ -297,10 +317,10 @@ export default async function SaleDetailPage({
           <table className="w-full py-2 text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
-                <th className="py-2 text-left font-medium">Item</th>
-                <th className="py-2 text-right font-medium">Qty</th>
-                <th className="py-2 text-right font-medium">Price</th>
-                <th className="py-2 text-right font-medium">Total</th>
+                <th className="py-2 text-left font-medium">{t("Item")}</th>
+                <th className="py-2 text-right font-medium">{t("Qty")}</th>
+                <th className="py-2 text-right font-medium">{t("Price")}</th>
+                <th className="py-2 text-right font-medium">{t("Total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -331,12 +351,12 @@ export default async function SaleDetailPage({
           {/* Totals */}
           <div className="mt-4 ml-auto w-64 space-y-1 text-sm">
             <div className="flex justify-between text-zinc-500">
-              <span>Subtotal</span>
+              <span>{t("Subtotal")}</span>
               <span>{formatMoney(toNum(sale.subtotal), settings.currency)}</span>
             </div>
             {toNum(sale.discountAmount) > 0 && (
               <div className="flex justify-between text-zinc-500">
-                <span>Discount</span>
+                <span>{t("Discount")}</span>
                 <span>
                   −{formatMoney(toNum(sale.discountAmount), settings.currency)}
                 </span>
@@ -349,34 +369,34 @@ export default async function SaleDetailPage({
               </div>
             )}
             <div className="flex justify-between border-t border-zinc-200 pt-1.5 text-base font-bold text-zinc-900">
-              <span>Total</span>
+              <span>{t("Total")}</span>
               <span>{formatMoney(toNum(sale.total), settings.currency)}</span>
             </div>
             {returned > 0 && (
               <>
                 <div className="flex justify-between text-red-600">
-                  <span>Returned</span>
+                  <span>{t("Returned")}</span>
                   <span>−{formatMoney(returned, settings.currency)}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-zinc-900">
-                  <span>Net total</span>
+                  <span>{t("Net total")}</span>
                   <span>{formatMoney(netTotal, settings.currency)}</span>
                 </div>
               </>
             )}
             <div className="flex justify-between text-zinc-500">
-              <span>Paid</span>
+              <span>{t("Paid")}</span>
               <span>{formatMoney(toNum(sale.paidAmount), settings.currency)}</span>
             </div>
             {refunded > 0 && (
               <div className="flex justify-between text-zinc-500">
-                <span>Paid back</span>
+                <span>{t("Paid back")}</span>
                 <span>−{formatMoney(refunded, settings.currency)}</span>
               </div>
             )}
             {toNum(sale.changeAmount) > 0 && (
               <div className="flex justify-between text-zinc-500">
-                <span>Change</span>
+                <span>{t("Change")}</span>
                 <span>
                   {formatMoney(toNum(sale.changeAmount), settings.currency)}
                 </span>
@@ -385,12 +405,12 @@ export default async function SaleDetailPage({
             {balanceDue > 0 && (
               <>
                 <div className="flex justify-between border-t border-dashed border-amber-300 pt-1.5 font-semibold text-amber-700">
-                  <span>Balance due</span>
+                  <span>{t("Balance due")}</span>
                   <span>{formatMoney(balanceDue, settings.currency)}</span>
                 </div>
                 {sale.dueDate && (
                   <p className="text-right text-xs text-amber-700">
-                    payable by {formatDate(sale.dueDate)}
+                    {t("payable by")} {formatDate(sale.dueDate)}
                   </p>
                 )}
               </>
@@ -401,7 +421,7 @@ export default async function SaleDetailPage({
               walks away with when the bill goes on udhaar. */}
           {balanceDue > 0 && (
             <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              <p className="font-bold tracking-wide uppercase">Payment reminder</p>
+              <p className="font-bold tracking-wide uppercase">{t("Payment reminder")}</p>
               <p className="mt-1 leading-relaxed">
                 {sale.customer?.name ?? "Customer"} owes{" "}
                 <span className="font-semibold">
@@ -417,8 +437,8 @@ export default async function SaleDetailPage({
           {hasReturns && (
             <div className="mt-4 border-t border-dashed border-zinc-200 pt-3 text-xs">
               <p className="mb-2 font-semibold uppercase tracking-wide text-zinc-500">
-                Returns
-              </p>
+                {t("Returns")}
+            </p>
               <ul className="space-y-2">
                 {sale.returns.map((ret) => (
                   <li key={ret.id}>
@@ -439,7 +459,7 @@ export default async function SaleDetailPage({
                     <p className="text-zinc-400">
                       {toNum(ret.refundAmount) > 0
                         ? `${formatMoney(toNum(ret.refundAmount), settings.currency)} paid back (${PAYMENT_LABELS[ret.refundMethod] ?? ret.refundMethod})`
-                        : "Credited to account"}
+                        : t("Credited to account")}
                       {" · "}
                       {ret.user.name ?? "—"}
                       {ret.reason ? ` · ${ret.reason}` : ""}
@@ -472,15 +492,15 @@ export default async function SaleDetailPage({
             address: settings.address,
             phone: settings.phone,
           }}
-          title={sale.status === "HELD" ? "Held bill" : "Sale receipt"}
+          title={sale.status === "HELD" ? t("Held bill") : t("Sale receipt")}
           meta={[
-            { label: "Invoice", value: sale.invoiceNo },
-            { label: "Date", value: formatDateTime(sale.createdAt) },
-            { label: "Cashier", value: sale.user.name ?? "—" },
-            { label: "Customer", value: sale.customer?.name ?? "Walk-in" },
+            { label: t("Invoice"), value: sale.invoiceNo },
+            { label: t("Date"), value: formatDateTime(sale.createdAt) },
+            { label: t("Cashier"), value: sale.user.name ?? "—" },
+            { label: t("Customer"), value: sale.customer?.name ?? t("Walk-in") },
             {
-              label: "Payment",
-              value: PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod,
+              label: t("Payment"),
+              value: t(PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod),
             },
           ]}
           lines={sale.items.map((item) => ({
@@ -494,9 +514,9 @@ export default async function SaleDetailPage({
                 : undefined,
           }))}
           totals={[
-            { label: "Subtotal", value: formatMoney(toNum(sale.subtotal), currency) },
+            { label: t("Subtotal"), value: formatMoney(toNum(sale.subtotal), currency) },
             ...(toNum(sale.discountAmount) > 0
-              ? [{ label: "Discount", value: `−${formatMoney(toNum(sale.discountAmount), currency)}` }]
+              ? [{ label: t("Discount"), value: `−${formatMoney(toNum(sale.discountAmount), currency)}` }]
               : []),
             ...(toNum(sale.taxAmount) > 0
               ? [{
@@ -504,22 +524,22 @@ export default async function SaleDetailPage({
                   value: formatMoney(toNum(sale.taxAmount), currency),
                 }]
               : []),
-            { label: "TOTAL", value: formatMoney(toNum(sale.total), currency), strong: true },
+            { label: t("Total").toUpperCase(), value: formatMoney(toNum(sale.total), currency), strong: true },
             ...(returned > 0
               ? [
-                  { label: "Returned", value: `−${formatMoney(returned, currency)}` },
-                  { label: "Net total", value: formatMoney(netTotal, currency), strong: true },
+                  { label: t("Returned"), value: `−${formatMoney(returned, currency)}` },
+                  { label: t("Net total"), value: formatMoney(netTotal, currency), strong: true },
                 ]
               : []),
-            { label: "Paid", value: formatMoney(toNum(sale.paidAmount), currency) },
+            { label: t("Paid"), value: formatMoney(toNum(sale.paidAmount), currency) },
             ...(refunded > 0
-              ? [{ label: "Paid back", value: `−${formatMoney(refunded, currency)}` }]
+              ? [{ label: t("Paid back"), value: `−${formatMoney(refunded, currency)}` }]
               : []),
             ...(toNum(sale.changeAmount) > 0
-              ? [{ label: "Change", value: formatMoney(toNum(sale.changeAmount), currency) }]
+              ? [{ label: t("Change"), value: formatMoney(toNum(sale.changeAmount), currency) }]
               : []),
             ...(balanceDue > 0
-              ? [{ label: "BALANCE DUE", value: formatMoney(balanceDue, currency), strong: true }]
+              ? [{ label: t("Balance due").toUpperCase(), value: formatMoney(balanceDue, currency), strong: true }]
               : []),
           ]}
           notices={[

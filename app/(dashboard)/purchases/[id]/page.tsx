@@ -37,6 +37,21 @@ export default async function PurchaseDetailPage({
           orderBy: { createdAt: "asc" },
           select: { id: true, amount: true, method: true, createdAt: true },
         },
+        returns: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            user: { select: { name: true } },
+            items: {
+              select: {
+                id: true,
+                purchaseItemId: true,
+                quantity: true,
+                amount: true,
+                purchaseItem: { select: { product: { select: { name: true } } } },
+              },
+            },
+          },
+        },
       },
     }),
     getSettings(),
@@ -44,7 +59,15 @@ export default async function PurchaseDetailPage({
 
   if (!purchase) notFound();
 
-  const { paid, due } = purchaseSettlement(purchase);
+  const { paid, returned, netTotal, due } = purchaseSettlement(purchase);
+  const canReturn = purchase.items.some(
+    (item) =>
+      toNum(item.quantity) >
+      purchase.returns
+        .flatMap((r) => r.items)
+        .filter((ri) => ri.purchaseItemId === item.id)
+        .reduce((sum, ri) => sum + toNum(ri.quantity), 0)
+  );
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -55,7 +78,17 @@ export default async function PurchaseDetailPage({
         >
           <ArrowLeftIcon className="h-4 w-4" /> Back to purchases
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <PrintButton />
+          {canReturn && (
+            <Link
+              href={`/purchases/${purchase.id}/return`}
+              className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              Return to supplier
+            </Link>
+          )}
+        </div>
       </div>
 
       {isNew && (
@@ -141,6 +174,18 @@ export default async function PurchaseDetailPage({
             <span>Total</span>
             <span>{formatMoney(toNum(purchase.total), settings.currency)}</span>
           </div>
+          {returned > 0 && (
+            <>
+              <div className="flex justify-between text-red-600">
+                <span>Returned to supplier</span>
+                <span>−{formatMoney(returned, settings.currency)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-zinc-900">
+                <span>Net total</span>
+                <span>{formatMoney(netTotal, settings.currency)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between text-zinc-500">
             <span>Paid at purchase</span>
             <span>
@@ -185,6 +230,36 @@ export default async function PurchaseDetailPage({
             >
               Pay {purchase.supplier.name}
             </Link>
+          </div>
+        )}
+
+        {purchase.returns.length > 0 && (
+          <div className="mt-4 border-t border-dashed border-zinc-200 pt-3 text-xs">
+            <p className="mb-2 font-semibold uppercase tracking-wide text-zinc-500">
+              Returned to supplier
+            </p>
+            <ul className="space-y-2">
+              {purchase.returns.map((ret) => (
+                <li key={ret.id}>
+                  <div className="flex justify-between text-zinc-900">
+                    <span className="font-medium">{formatDateTime(ret.createdAt)}</span>
+                    <span>−{formatMoney(toNum(ret.amount), settings.currency)}</span>
+                  </div>
+                  <p className="text-zinc-500">
+                    {ret.items
+                      .map(
+                        (item) =>
+                          `${formatQty(toNum(item.quantity))} × ${item.purchaseItem.product.name}`
+                      )
+                      .join(", ")}
+                  </p>
+                  <p className="text-zinc-400">
+                    {ret.user.name ?? "—"}
+                    {ret.reason ? ` · ${ret.reason}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
