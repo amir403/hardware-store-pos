@@ -16,7 +16,7 @@ function createPrismaClient() {
     // Supabase/Neon) drops them, which is what triggers
     // "Server has closed the connection".
     max: 10,
-    idleTimeoutMillis: 10_000,
+    idleTimeoutMillis: 5_000,
     connectionTimeoutMillis: 10_000,
     allowExitOnIdle: false,
     // `prisma dev` sits behind a proxy that severs sockets it deems idle.
@@ -52,7 +52,8 @@ function getPrismaClient(): PrismaClient {
  * back off and try a few times before surfacing the error. `invoke` is called
  * again ONLY on failure.
  */
-const CONNECTION_ATTEMPTS = 3;
+// Up to ~2.3 s of back-off: enough for every dead pooled socket to be replaced.
+const CONNECTION_ATTEMPTS = 5;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
