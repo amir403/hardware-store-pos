@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { ImagePlusIcon } from "lucide-react";
 import Link from "next/link";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
+import { ProductThumb } from "@/app/components/product-thumb";
 
 type CategoryOption = { id: string; name: string };
 
@@ -22,12 +24,13 @@ type ProductDefaults = {
   stockQty: string;
   reorderLevel: string;
   trackStock: boolean;
+  imageUrl: string;
 };
 
 const UNITS = ["pcs", "box", "kg", "ltr", "m", "yard", "cft", "hr"];
 
 const inputClass =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:bg-zinc-100";
+  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 disabled:bg-zinc-100";
 
 const labelClass = "text-sm font-medium text-zinc-700";
 
@@ -43,6 +46,10 @@ export function ProductForm({
   isEdit: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
+  /** Local preview of a newly picked photo; the server re-encodes the file. */
+  const [preview, setPreview] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const shownImage = preview ?? (removeImage ? null : defaults.imageUrl || null);
 
   const fieldError = (field: string) =>
     state?.fieldErrors?.[field]?.[0] as string | undefined;
@@ -74,6 +81,46 @@ export function ProductForm({
           {fieldError("name") && (
             <p className="text-xs text-red-600">{fieldError("name")}</p>
           )}
+        </div>
+
+        <div className="flex items-center gap-4 sm:col-span-2">
+          <ProductThumb src={shownImage} name={defaults.name || "Product photo"} size={72} />
+          <div className="flex flex-col gap-1.5">
+            <label className="inline-flex h-9 w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/15">
+              <ImagePlusIcon className="h-4 w-4" />
+              {shownImage ? "Change photo" : "Add photo"}
+              <input
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (preview) URL.revokeObjectURL(preview);
+                  setPreview(file ? URL.createObjectURL(file) : null);
+                  if (file) setRemoveImage(false);
+                }}
+              />
+            </label>
+            {defaults.imageUrl && !preview && (
+              <label className="flex items-center gap-2 text-xs text-zinc-600">
+                <input
+                  type="checkbox"
+                  name="removeImage"
+                  checked={removeImage}
+                  onChange={(e) => setRemoveImage(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-zinc-300"
+                />
+                Remove photo
+              </label>
+            )}
+            <p className="text-xs text-zinc-400">
+              A clear photo helps the cashier pick the right item. JPG, PNG or WebP.
+            </p>
+            {fieldError("image") && (
+              <p className="text-xs text-red-600">{fieldError("image")}</p>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -273,7 +320,7 @@ export function ProductForm({
             rows={2}
             maxLength={500}
             defaultValue={defaults.description}
-            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
           {fieldError("description") && (
             <p className="text-xs text-red-600">{fieldError("description")}</p>
@@ -285,7 +332,7 @@ export function ProductForm({
             type="checkbox"
             name="trackStock"
             defaultChecked={defaults.trackStock}
-            className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+            className="h-4 w-4 rounded border-zinc-300 accent-brand-700"
           />
           Track stock (uncheck for services / untracked items)
         </label>

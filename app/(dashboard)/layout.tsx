@@ -80,7 +80,7 @@ export default async function DashboardLayout({
                 href="/"
                 className="mb-6 flex items-center gap-2.5 px-2 py-1"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-zinc-950">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
                   <Wrench className="h-5 w-5" />
                 </span>
                 <span className="flex flex-col leading-tight">
@@ -96,7 +96,7 @@ export default async function DashboardLayout({
               <div className="mt-4">
                 <Link
                   href="/pos"
-                  className="flex h-9 items-center justify-center gap-2 rounded-lg bg-white text-sm font-medium text-zinc-950 transition hover:bg-zinc-200"
+                  className="flex h-9 items-center justify-center gap-2 rounded-lg bg-brand-700 text-sm font-medium text-white transition hover:bg-brand-600"
                 >
                   <Plus className="h-4 w-4" />
                   {t("New Sale")}

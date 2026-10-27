@@ -65,6 +65,7 @@ export default async function EditProductPage({
             stockQty: String(product.stockQty ?? 0),
             reorderLevel: String(product.reorderLevel ?? 0),
             trackStock: product.trackStock,
+            imageUrl: product.imageUrl ?? "",
           }}
         />
       </div>

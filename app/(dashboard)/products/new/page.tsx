@@ -51,6 +51,7 @@ export default async function NewProductPage() {
             stockQty: "0",
             reorderLevel: "0",
             trackStock: true,
+            imageUrl: "",
           }}
         />
       </div>

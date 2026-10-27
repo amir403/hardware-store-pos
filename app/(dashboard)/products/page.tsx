@@ -8,6 +8,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { toggleProductActiveAction } from "@/app/actions/products";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { FlashToast } from "@/app/components/toast";
+import { ProductThumb } from "@/app/components/product-thumb";
 
 export const metadata = { title: "Products" };
 
@@ -63,7 +64,7 @@ export default async function ProductsPage({
           canManage && (
             <Link
               href="/products/new"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               <PlusIcon className="h-4 w-4" />
               Add product
@@ -88,13 +89,13 @@ export default async function ProductsPage({
             name="q"
             defaultValue={q}
             placeholder="Search by name, SKU or barcode…"
-            className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
         </div>
         <select
           name="category"
           defaultValue={categoryId}
-          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -143,13 +144,18 @@ export default async function ProductsPage({
               return (
                 <tr key={product.id} className="hover:bg-zinc-50">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-900">
-                      {product.name}
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      {product.sku ?? "No SKU"}
-                      {product.unit !== "pcs" ? ` · per ${product.unit}` : ""}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <ProductThumb src={product.imageUrl} name={product.name} />
+                      <div className="min-w-0">
+                        <p className="font-medium text-zinc-900">
+                          {product.name}
+                        </p>
+                        <p className="text-xs text-zinc-400">
+                          {product.sku ?? "No SKU"}
+                          {product.unit !== "pcs" ? ` · per ${product.unit}` : ""}
+                        </p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-zinc-600">
                     {product.category?.name ?? "—"}

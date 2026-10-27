@@ -180,9 +180,22 @@ model Product {
   returnItems         SaleReturnItem[]
   quotationItems      QuotationItem[]
   purchaseReturnItems PurchaseReturnItem[]
+  image               ProductImage?
 
   @@index([categoryId])
   @@index([name])
+}
+
+// The product photo, kept apart so product queries never drag image bytes
+// along. Stored already resized (WebP, ~512 px) and served by
+// /api/products/[id]/image; Product.imageUrl points there.
+model ProductImage {
+  productId   String   @id
+  data        Bytes
+  contentType String
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================

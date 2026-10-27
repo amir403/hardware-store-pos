@@ -34,7 +34,7 @@ export function LoginForm() {
           required
           autoFocus
           placeholder="you@store.com"
-          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
       </div>
 
@@ -52,14 +52,14 @@ export function LoginForm() {
           autoComplete="current-password"
           required
           placeholder="••••••••"
-          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
       </div>
 
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 h-10 rounded-lg bg-brand-700 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

@@ -107,7 +107,7 @@ export default async function SalesPage({
                 }}
                 className={`inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium transition ${
                   active
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-brand-700 text-white"
                     : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
                 }`}
               >
@@ -126,7 +126,7 @@ export default async function SalesPage({
                 name="q"
                 defaultValue={q}
                 placeholder="Search by invoice no or customer…"
-                className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 sm:w-80"
+                className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 sm:w-80"
               />
             </div>
           </form>

@@ -30,7 +30,7 @@ export function ConvertQuotationButton({ quotationId }: { quotationId: string })
             router.push(`/pos?recall=${result.heldSaleId}`);
           })
         }
-        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 print:hidden"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60 print:hidden"
       >
         <ShoppingCartIcon className="h-4 w-4" />
         {isPending ? "Converting…" : "Convert to sale"}

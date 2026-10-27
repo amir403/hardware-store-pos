@@ -38,7 +38,7 @@ export default function RootError({
         <button
           type="button"
           onClick={() => unstable_retry()}
-          className="mx-auto mt-5 inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+          className="mx-auto mt-5 inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           <RefreshCwIcon className="h-4 w-4" />
           Try again

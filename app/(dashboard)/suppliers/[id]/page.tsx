@@ -199,7 +199,7 @@ export default async function SupplierAccountPage({
             </Link>
             <Link
               href={`/purchases/new?supplier=${supplier.id}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-sm font-medium text-white transition hover:bg-zinc-700"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               <PlusIcon className="h-4 w-4" /> New purchase
             </Link>

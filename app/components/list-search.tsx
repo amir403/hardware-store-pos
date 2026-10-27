@@ -37,12 +37,12 @@ export function ListSearch({
           name="q"
           defaultValue={defaultValue}
           placeholder={placeholder}
-          className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
       </div>
       <button
         type="submit"
-        className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+        className="h-10 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
       >
         Search
       </button>

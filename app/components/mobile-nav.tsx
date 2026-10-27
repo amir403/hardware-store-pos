@@ -26,7 +26,7 @@ export function MobileNav({
     <>
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 lg:hidden print:hidden">
         <Link href="/" className="flex items-center gap-2" onClick={close}>
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 text-white">
             <Wrench className="h-4 w-4" />
           </span>
           <span className="text-sm font-semibold text-zinc-900">Hardware POS</span>
@@ -35,7 +35,7 @@ export function MobileNav({
           <Link
             href="/pos"
             onClick={close}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-sm font-medium text-white"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-sm font-medium text-white"
           >
             <Plus className="h-4 w-4" />
             {t("Sale")}
@@ -58,9 +58,9 @@ export function MobileNav({
             type="button"
             aria-label={t("Close menu")}
             onClick={close}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 animate-fade-in bg-black/40"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-zinc-950 p-4">
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] animate-drawer-in flex-col overflow-y-auto bg-zinc-950 p-4">
             <div className="mb-4 flex items-center justify-between px-2">
               <span className="text-sm font-semibold text-white">{t("Menu")}</span>
               <button

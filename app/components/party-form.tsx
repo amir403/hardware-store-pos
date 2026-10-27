@@ -18,7 +18,7 @@ export type PartyDefaults = {
 };
 
 const inputClass =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 const labelClass = "text-sm font-medium text-zinc-700";
 
@@ -140,7 +140,7 @@ export function PartyForm({
             name="priceTier"
             value="WHOLESALE"
             defaultChecked={defaults.priceTier === "WHOLESALE"}
-            className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+            className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-brand-700"
           />
           <span>
             {t("Wholesale customer")}
@@ -175,7 +175,7 @@ export function PartyForm({
           rows={2}
           maxLength={300}
           defaultValue={defaults.notes}
-          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
       </div>
 

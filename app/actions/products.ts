@@ -7,6 +7,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { toNum } from "@/app/lib/format";
 import { recordAudit } from "@/app/lib/audit";
+import { applyImageChange, readImageChange } from "@/app/lib/product-image";
 
 export type FormState = {
   error?: string;
@@ -80,6 +81,11 @@ export async function createProductAction(
 
   const data = parsed.data;
 
+  const image = await readImageChange(formData);
+  if (image.kind === "error") {
+    return { fieldErrors: { image: [image.message] } };
+  }
+
   if (data.sku) {
     const existing = await prisma.product.findUnique({ where: { sku: data.sku } });
     if (existing) {
@@ -101,7 +107,7 @@ export async function createProductAction(
   }
 
   try {
-    await prisma.product.create({
+    const created = await prisma.product.create({
       data: {
         name: data.name,
         sku: data.sku,
@@ -118,6 +124,7 @@ export async function createProductAction(
         categoryId: data.categoryId,
       },
     });
+    await applyImageChange(created.id, image);
   } catch (error) {
     console.error("createProduct failed:", error);
     return { error: "Failed to create the product. Please try again." };
@@ -161,6 +168,11 @@ export async function updateProductAction(
   }
 
   const data = parsed.data;
+
+  const image = await readImageChange(formData);
+  if (image.kind === "error") {
+    return { fieldErrors: { image: [image.message] } };
+  }
 
   if (data.sku) {
     const existing = await prisma.product.findFirst({
@@ -230,6 +242,7 @@ export async function updateProductAction(
         details: { before: was, after: { price: data.price, cost: data.costPrice, wholesale: data.wholesalePrice } },
       });
     }
+    await applyImageChange(id, image);
   } catch (error) {
     console.error("updateProduct failed:", error);
     return { error: "Failed to update the product. Please try again." };

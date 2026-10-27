@@ -57,7 +57,7 @@ export default async function StockCountPage({
         <select
           name="category"
           defaultValue={category}
-          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -115,7 +115,7 @@ export default async function StockCountPage({
                       min="0"
                       step="any"
                       aria-label={`Counted ${p.name}`}
-                      className="h-8 w-28 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900 print:border-zinc-400"
+                      className="h-8 w-28 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-brand-600 print:border-zinc-400"
                     />
                   </td>
                 </tr>

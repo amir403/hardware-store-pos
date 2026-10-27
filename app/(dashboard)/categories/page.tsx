@@ -69,7 +69,7 @@ export default async function CategoriesPage() {
                           defaultValue={category.name}
                           maxLength={50}
                           required
-                          className="h-8 w-48 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-zinc-900 outline-none hover:border-zinc-300 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+                          className="h-8 w-48 rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-zinc-900 outline-none hover:border-zinc-300 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
                         />
                         <SubmitButton
                           pendingLabel="…"

@@ -18,7 +18,7 @@ export type ReturnableItem = {
 };
 
 const inputClass =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 /** Mirrors returnSaleItemsAction's line value; the server figure is final. */
 function lineCredit(item: ReturnableItem, quantity: number): number {
@@ -152,7 +152,7 @@ export function ReturnForm({
                             }))
                           }
                           placeholder="0"
-                          className="h-8 w-20 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                          className="h-8 w-20 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
                         />
                         <button
                           type="button"
@@ -262,7 +262,7 @@ export function ReturnForm({
           type="button"
           disabled={isPending || lines.length === 0}
           onClick={submit}
-          className="flex h-10 items-center rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 items-center rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Saving…" : "Record return"}
         </button>

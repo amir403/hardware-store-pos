@@ -34,7 +34,7 @@ export type PurchaseLineSeed = {
 };
 
 const inputClass =
-  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 export function PurchaseForm({
   products,
@@ -236,7 +236,7 @@ export function PurchaseForm({
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleSearchKeyDown}
           placeholder="Search product name or SKU, press Enter to add…"
-          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
         {query && results.length > 0 && (
           <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -325,7 +325,7 @@ export function PurchaseForm({
                               quantity: Number(e.target.value),
                             })
                           }
-                          className="h-7 w-20 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                          className="h-7 w-20 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-brand-600"
                         />
                         <button
                           type="button"
@@ -351,7 +351,7 @@ export function PurchaseForm({
                             unitCost: Number(e.target.value),
                           })
                         }
-                        className="h-7 w-24 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                        className="h-7 w-24 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
                       />
                     </td>
                     <td className="px-4 py-2 text-right font-semibold text-zinc-900">
@@ -439,7 +439,7 @@ export function PurchaseForm({
             type="checkbox"
             checked={updateCost}
             onChange={(e) => setUpdateCost(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+            className="h-4 w-4 rounded border-zinc-300 accent-brand-700"
           />
           Update product cost prices to latest
         </label>
@@ -455,7 +455,7 @@ export function PurchaseForm({
             type="button"
             disabled={isPending || lines.length === 0}
             onClick={submit}
-            className="flex h-10 items-center rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 items-center rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Saving…" : "Record purchase"}
           </button>

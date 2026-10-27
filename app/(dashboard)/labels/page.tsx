@@ -71,13 +71,13 @@ export default async function BarcodeLabelsPage({
             name="q"
             defaultValue={q}
             placeholder="Search by name, SKU or barcode…"
-            className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            className="h-10 w-full rounded-lg border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
         </div>
         <select
           name="category"
           defaultValue={categoryId}
-          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -110,7 +110,7 @@ export default async function BarcodeLabelsPage({
                 <select
                   name="size"
                   defaultValue={settings.labelSize}
-                  className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                  className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-brand-600"
                 >
                   {Object.entries(LABEL_SIZES).map(([value, size]) => (
                     <option key={value} value={value}>
@@ -127,7 +127,7 @@ export default async function BarcodeLabelsPage({
                   min={1}
                   max={24}
                   defaultValue={2}
-                  className="h-8 w-16 rounded-lg border border-zinc-300 bg-white px-2 text-center text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                  className="h-8 w-16 rounded-lg border border-zinc-300 bg-white px-2 text-center text-sm text-zinc-900 outline-none focus:border-brand-600"
                 />
               </label>
             </div>
@@ -179,7 +179,7 @@ export default async function BarcodeLabelsPage({
             <button
               type="submit"
               disabled={scannable.length === 0}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <PrinterIcon className="h-4 w-4" />
               Print labels

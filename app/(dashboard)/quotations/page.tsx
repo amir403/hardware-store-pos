@@ -66,7 +66,7 @@ export default async function QuotationsPage({
         actions={
           <Link
             href="/pos"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             <PlusIcon className="h-4 w-4" />
             New quotation
@@ -95,7 +95,7 @@ export default async function QuotationsPage({
             }).toString()}`}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               (status ?? "") === f.value
-                ? "border-zinc-900 bg-zinc-900 text-white"
+                ? "border-brand-700 bg-brand-700 text-white"
                 : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
             }`}
           >

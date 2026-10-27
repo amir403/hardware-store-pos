@@ -90,7 +90,7 @@ export function SupplierReturnForm({
                           setQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
                         }
                         placeholder="0"
-                        className="h-8 w-20 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                        className="h-8 w-20 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
                       />
                       <button
                         type="button"
@@ -122,7 +122,7 @@ export function SupplierReturnForm({
           onChange={(e) => setReason(e.target.value)}
           maxLength={300}
           placeholder="e.g. damaged in delivery, wrong size"
-          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
       </div>
 
@@ -139,7 +139,7 @@ export function SupplierReturnForm({
           type="button"
           disabled={isPending || lines.length === 0}
           onClick={submit}
-          className="flex h-10 items-center rounded-xl bg-zinc-900 px-5 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 items-center rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Saving…" : "Send back"}
         </button>

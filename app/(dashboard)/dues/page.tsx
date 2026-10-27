@@ -202,7 +202,7 @@ export default async function DuesPage() {
           </p>
           <Link
             href="/pos"
-            className="mt-5 inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700"
+            className="mt-5 inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800"
           >
             New sale
           </Link>

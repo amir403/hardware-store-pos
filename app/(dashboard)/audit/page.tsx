@@ -81,7 +81,7 @@ export default async function AuditPage({
           href={link({ action: null })}
           className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
             !action
-              ? "border-zinc-900 bg-zinc-900 text-white"
+              ? "border-brand-700 bg-brand-700 text-white"
               : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
           }`}
         >
@@ -93,7 +93,7 @@ export default async function AuditPage({
             href={link({ action: key })}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               action === key
-                ? "border-zinc-900 bg-zinc-900 text-white"
+                ? "border-brand-700 bg-brand-700 text-white"
                 : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
             }`}
           >

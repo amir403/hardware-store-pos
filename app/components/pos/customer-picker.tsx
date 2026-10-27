@@ -10,7 +10,7 @@ import { useToast } from "@/app/components/toast";
 import { useT } from "@/app/components/lang";
 
 const inputClass =
-  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 const MAX_MATCHES = 8;
 
@@ -121,7 +121,7 @@ export function CustomerPicker({
             type="checkbox"
             checked={newWholesale}
             onChange={(e) => setNewWholesale(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+            className="h-4 w-4 rounded border-zinc-300 accent-brand-700"
           />
           {t("Wholesale customer")}
         </label>
@@ -130,7 +130,7 @@ export function CustomerPicker({
             type="button"
             disabled={isPending || newName.trim() === ""}
             onClick={saveNew}
-            className="h-8 flex-1 rounded-lg bg-zinc-900 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
+            className="h-8 flex-1 rounded-lg bg-brand-700 text-xs font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
           >
             {isPending ? `${t("Saving")}…` : t("Add & select")}
           </button>
@@ -211,7 +211,7 @@ export function CustomerPicker({
       </div>
 
       {open && (
-        <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg">
+        <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 origin-top animate-pop-in overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 text-sm shadow-lg">
           {matches.map((c) => (
             <li key={c.id}>
               <button

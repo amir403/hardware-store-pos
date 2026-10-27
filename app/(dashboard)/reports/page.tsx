@@ -450,7 +450,7 @@ export default async function ReportsPage({
               href={`/reports?from=${range.from}&to=${range.to}`}
               className={`inline-flex h-8 items-center rounded-lg border px-3 text-xs font-medium transition ${
                 active
-                  ? "border-zinc-900 bg-zinc-900 text-white"
+                  ? "border-brand-700 bg-brand-700 text-white"
                   : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
               }`}
             >
@@ -464,18 +464,18 @@ export default async function ReportsPage({
             type="date"
             name="from"
             defaultValue={from}
-            className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+            className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-brand-600"
           />
           <span className="text-xs text-zinc-400">to</span>
           <input
             type="date"
             name="to"
             defaultValue={to}
-            className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+            className="h-8 rounded-lg border border-zinc-300 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-brand-600"
           />
           <button
             type="submit"
-            className="inline-flex h-8 items-center rounded-lg bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700"
+            className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 text-xs font-medium text-white transition hover:bg-brand-800"
           >
             Apply
           </button>
@@ -492,7 +492,7 @@ export default async function ReportsPage({
           </p>
           <Link
             href="/pos"
-            className="mt-5 inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700"
+            className="mt-5 inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800"
           >
             New sale
           </Link>
@@ -539,7 +539,7 @@ export default async function ReportsPage({
               </h2>
               <div className="flex items-center gap-4 text-xs text-zinc-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-zinc-900" /> revenue
+                  <span className="h-2.5 w-2.5 rounded-sm bg-brand-500" /> revenue
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> gross
@@ -568,7 +568,7 @@ export default async function ReportsPage({
                       style={{ height: "8rem" }}
                     >
                       <div
-                        className="w-1/2 rounded-t bg-zinc-900"
+                        className="w-1/2 rounded-t bg-brand-500"
                         style={{ height: `${Math.max(height, day.revenue > 0 ? 2 : 0)}%` }}
                       />
                       <div
@@ -667,7 +667,7 @@ export default async function ReportsPage({
                           <div className="flex items-center justify-end gap-2">
                             <span className="h-1.5 w-16 overflow-hidden rounded-full bg-zinc-100">
                               <span
-                                className="block h-full rounded-full bg-zinc-900"
+                                className="block h-full rounded-full bg-brand-500"
                                 style={{ width: `${share}%` }}
                               />
                             </span>
@@ -708,7 +708,7 @@ export default async function ReportsPage({
                       </div>
                       <span className="mt-1 block h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
                         <span
-                          className="block h-full rounded-full bg-zinc-900"
+                          className="block h-full rounded-full bg-brand-500"
                           style={{ width: `${share}%` }}
                         />
                       </span>

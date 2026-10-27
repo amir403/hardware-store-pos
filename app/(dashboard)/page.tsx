@@ -279,7 +279,7 @@ export default async function DashboardPage() {
         actions={
           <Link
             href="/pos"
-            className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+            className="inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             Start selling
           </Link>
@@ -462,7 +462,7 @@ export default async function DashboardPage() {
                 </span>
                 <div className="flex h-24 w-full items-end rounded-md bg-zinc-100">
                   <div
-                    className="w-full rounded-md bg-zinc-900 transition-all"
+                    className="w-full rounded-md bg-brand-500 transition-all"
                     style={{ height: `${Math.max((day.revenue / maxDailyRevenue) * 100, day.revenue > 0 ? 8 : 0)}%` }}
                     title={`${day.dateLabel}: ${formatMoney(day.revenue, settings.currency)}`}
                   />

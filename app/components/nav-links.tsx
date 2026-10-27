@@ -83,11 +83,14 @@ export function NavLinks({ items }: { items: NavItem[] }) {
               href={item.href}
               className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 active
-                  ? "bg-white/10 text-white"
+                  ? "bg-brand-500/15 text-white"
                   : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
               }`}
             >
-              <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
+              <Icon
+                className={`h-4.5 w-4.5 shrink-0 transition-colors ${active ? "text-brand-400" : ""}`}
+                strokeWidth={2}
+              />
               {item.label}
             </Link>
           </Fragment>

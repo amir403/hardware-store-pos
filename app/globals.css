@@ -1,26 +1,174 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /*
+   * Warm neutrals. The whole app is written against Tailwind's `zinc` scale;
+   * remapping it here to warm (stone-like) values gives every page the same
+   * temperature as the brand orange without touching each component.
+   */
+  --color-zinc-50: oklch(98.5% 0.002 75);
+  --color-zinc-100: oklch(96.8% 0.004 75);
+  --color-zinc-200: oklch(92.2% 0.006 70);
+  --color-zinc-300: oklch(86.8% 0.008 65);
+  --color-zinc-400: oklch(70.8% 0.012 60);
+  --color-zinc-500: oklch(55.2% 0.014 58);
+  --color-zinc-600: oklch(44.4% 0.012 60);
+  --color-zinc-700: oklch(37.2% 0.011 58);
+  --color-zinc-800: oklch(26.8% 0.008 50);
+  --color-zinc-900: oklch(21.6% 0.007 52);
+  --color-zinc-950: oklch(15.2% 0.006 50);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /*
+   * Brand: safety orange. Owns action and selection only (primary buttons,
+   * the active page, focus, chosen filters). Amber stays reserved for
+   * credit/warning so the two never read as the same signal.
+   * brand-700 is the button fill: white text on it clears 4.5:1.
+   */
+  --color-brand-50: oklch(97.6% 0.016 52);
+  --color-brand-100: oklch(94.6% 0.04 50);
+  --color-brand-200: oklch(88.8% 0.08 48);
+  --color-brand-300: oklch(81.5% 0.13 46);
+  --color-brand-400: oklch(73% 0.18 44);
+  --color-brand-500: oklch(66.5% 0.205 42);
+  --color-brand-600: oklch(60% 0.205 40);
+  --color-brand-700: oklch(52.5% 0.18 38);
+  --color-brand-800: oklch(45% 0.15 37);
+  --color-brand-900: oklch(38.5% 0.12 37);
+  --color-brand-950: oklch(25.5% 0.075 36);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-line-in: line-in 700ms var(--ease-out-expo);
+  --animate-tick: tick 260ms var(--ease-out-expo);
+  --animate-toast-in: toast-in 320ms var(--ease-out-expo);
+  --animate-drawer-in: drawer-in 280ms var(--ease-out-expo);
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-pop-in: pop-in 160ms var(--ease-out-expo);
+
+  /* A line just added to the bill glows brand and settles into the list. */
+  @keyframes line-in {
+    from {
+      background-color: var(--color-brand-100);
+      transform: translateY(-4px);
+    }
+    to {
+      background-color: transparent;
+      transform: none;
+    }
+  }
+  /* A changed quantity or total nudges so the eye catches it. */
+  @keyframes tick {
+    from {
+      transform: translateY(-35%);
+      opacity: 0.35;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.97);
+      filter: blur(3px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: none;
+    }
+  }
+  @keyframes drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    color-scheme: light;
+    accent-color: var(--color-brand-700);
+    caret-color: var(--color-brand-700);
+    scrollbar-color: var(--color-zinc-300) transparent;
+  }
+
+  body {
+    background: var(--color-zinc-50);
+    color: var(--color-zinc-900);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background: var(--color-brand-200);
+    color: var(--color-zinc-950);
+  }
+
+  /* Money and counts line up in columns. */
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+  /* Text fields already draw their own brand border + ring on focus. */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+
+  /* Every button acknowledges the press. */
+  button,
+  a[class*="rounded"] {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: var(--ease-out-expo);
+  }
+  button:not(:disabled):active,
+  a[class*="rounded"]:active {
+    transform: scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep colour and opacity feedback; drop the movement. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  button:not(:disabled):active,
+  a[class*="rounded"]:active {
+    transform: none;
+  }
 }

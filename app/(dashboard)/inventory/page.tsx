@@ -190,7 +190,7 @@ export default async function InventoryPage() {
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href="/purchases/new?from=lowstock&supplier=all"
-                      className="inline-flex h-8 items-center rounded-lg bg-zinc-900 px-3 text-xs font-medium text-white transition hover:bg-zinc-700"
+                      className="inline-flex h-8 items-center rounded-lg bg-brand-700 px-3 text-xs font-medium text-white transition hover:bg-brand-800"
                     >
                       All {plan.length} items
                     </Link>
@@ -235,7 +235,7 @@ export default async function InventoryPage() {
                 name="productId"
                 required
                 defaultValue=""
-                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600"
               >
                 <option value="" disabled>
                   Select product…
@@ -253,14 +253,14 @@ export default async function InventoryPage() {
                 step="any"
                 required
                 placeholder="New counted quantity"
-                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900"
+                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600"
               />
               <input
                 type="text"
                 name="reason"
                 maxLength={200}
                 placeholder="Reason (optional)"
-                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900"
+                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600"
               />
               <SubmitButton>Apply adjustment</SubmitButton>
             </ConfirmForm>

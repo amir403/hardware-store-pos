@@ -73,6 +73,7 @@ export default async function PosPage({
     unit: p.unit,
     trackStock: p.trackStock,
     categoryName: p.category?.name ?? null,
+    imageUrl: p.imageUrl,
   }));
 
   return (

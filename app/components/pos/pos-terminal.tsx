@@ -23,6 +23,7 @@ import { CustomerPicker } from "@/app/components/pos/customer-picker";
 import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { useT } from "@/app/components/lang";
+import { ProductThumb } from "@/app/components/product-thumb";
 
 export type PosProduct = {
   id: string;
@@ -37,6 +38,7 @@ export type PosProduct = {
   unit: string;
   trackStock: boolean;
   categoryName: string | null;
+  imageUrl: string | null;
 };
 
 export type PosCustomer = {
@@ -101,7 +103,7 @@ const SHORTCUTS = [
 ];
 
 const inputClass =
-  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 export function PosTerminal({
   products,
@@ -542,7 +544,7 @@ export function PosTerminal({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder={t("Scan barcode or search product name / SKU, then press Enter…")}
-            className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+            className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
         </div>
 
@@ -567,7 +569,7 @@ export function PosTerminal({
                 onClick={() => setCategory(c)}
                 className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition ${
                   category === c
-                    ? "border-zinc-900 bg-zinc-900 text-white"
+                    ? "border-brand-700 bg-brand-700 text-white"
                     : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
                 }`}
               >
@@ -588,8 +590,10 @@ export function PosTerminal({
                 type="button"
                 disabled={outOfStock}
                 onClick={() => addToCart(product)}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
+                <div className="flex min-w-0 items-center gap-3">
+                <ProductThumb src={product.imageUrl} name={product.name} size={44} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-zinc-900">
                     {product.name}
@@ -599,6 +603,7 @@ export function PosTerminal({
                     {product.trackStock && ` · ${product.stockQty} ${product.unit} ${t("in stock")}`}
                     {!product.trackStock && ` · ${t("service")}`}
                   </p>
+                </div>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-semibold text-zinc-900">
@@ -669,8 +674,15 @@ export function PosTerminal({
                     line.trackStock && line.quantity > line.stockQty;
 
                   return (
-                    <tr key={line.productId}>
+                    <tr key={line.productId} className="animate-line-in">
                       <td className="px-3 py-2">
+                        <div className="flex items-center gap-2.5">
+                        <ProductThumb
+                          src={products.find((p) => p.id === line.productId)?.imageUrl}
+                          name={line.name}
+                          size={32}
+                        />
+                        <div className="min-w-0">
                         <p className="max-w-56 truncate font-medium text-zinc-900">
                           {line.name}
                         </p>
@@ -683,6 +695,8 @@ export function PosTerminal({
                             {t("per")} {line.unit}
                           </p>
                         )}
+                        </div>
+                        </div>
                       </td>
                       <td className="px-2 py-2">
                         <div className="flex items-center gap-1">
@@ -707,7 +721,7 @@ export function PosTerminal({
                                 quantity: Number(e.target.value),
                               })
                             }
-                            className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                            className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-brand-600"
                           />
                           <button
                             type="button"
@@ -735,7 +749,7 @@ export function PosTerminal({
                               unitPrice: Number(e.target.value),
                             })
                           }
-                          className="h-7 w-20 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                          className="h-7 w-20 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
                         />
                       </td>
                       <td className="px-2 py-2">
@@ -749,11 +763,13 @@ export function PosTerminal({
                               discount: Number(e.target.value),
                             })
                           }
-                          className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+                          className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
                         />
                       </td>
                       <td className="px-3 py-2 text-right font-semibold text-zinc-900">
-                        {formatMoney(lineTotal, currency)}
+                        <span key={lineTotal} className="inline-block animate-tick">
+                          {formatMoney(lineTotal, currency)}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-right">
                         <button
@@ -873,7 +889,7 @@ export function PosTerminal({
               step="0.01"
               value={discountAmount}
               onChange={(e) => setDiscountAmount(e.target.value)}
-              className="h-8 w-28 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-zinc-900"
+              className="h-8 w-28 rounded-md border border-zinc-300 bg-white px-2 text-right text-sm text-zinc-900 outline-none focus:border-brand-600"
             />
           </div>
           {totals.taxAmount > 0 && (
@@ -884,7 +900,9 @@ export function PosTerminal({
           )}
           <div className="flex justify-between border-t border-zinc-100 pt-2 text-base font-semibold text-zinc-900">
             <span>{t("Total")}</span>
-            <span>{formatMoney(totals.total, currency)}</span>
+            <span key={totals.total} className="inline-block animate-tick">
+              {formatMoney(totals.total, currency)}
+            </span>
           </div>
         </div>
 
@@ -1008,7 +1026,7 @@ export function PosTerminal({
           type="button"
           disabled={isPending || cart.length === 0}
           onClick={checkout}
-          className="flex h-11 items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-11 items-center justify-center rounded-xl bg-brand-700 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending
             ? `${t("Processing")}…`
@@ -1050,7 +1068,9 @@ export function PosTerminal({
               {cart.length} {t(cart.length === 1 ? "item" : "items")} · {t("tap for payment details")}
             </p>
             <p className="truncate text-lg font-semibold text-zinc-900">
-              {formatMoney(totals.total, currency)}
+              <span key={totals.total} className="inline-block animate-tick">
+                {formatMoney(totals.total, currency)}
+              </span>
               {isCreditSale && (
                 <span className="ml-2 text-xs font-medium text-amber-700">
                   {formatMoney(balanceDue, currency)} {t("on credit")}
@@ -1062,7 +1082,7 @@ export function PosTerminal({
             type="button"
             disabled={isPending || cart.length === 0}
             onClick={checkout}
-            className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-11 shrink-0 items-center justify-center rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? `${t("Processing")}…` : t("Complete")}
           </button>

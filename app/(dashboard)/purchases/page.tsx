@@ -62,7 +62,7 @@ export default async function PurchasesPage({
         actions={
           <Link
             href="/purchases/new"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             <PlusIcon className="h-4 w-4" />
             Record purchase

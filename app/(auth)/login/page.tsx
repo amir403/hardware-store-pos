@@ -17,7 +17,7 @@ export default async function LoginPage() {
     <div className="flex min-h-screen flex-1 items-center justify-center bg-zinc-100 px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-700 text-white">
             <Wrench className="h-7 w-7" />
           </div>
           <div>

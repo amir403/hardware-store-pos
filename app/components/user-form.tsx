@@ -20,7 +20,7 @@ const ROLES = [
 ] as const;
 
 const inputClass =
-  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
+  "h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
 const labelClass = "text-sm font-medium text-zinc-700";
 
@@ -134,7 +134,7 @@ export function UserForm({
             type="checkbox"
             name="isActive"
             defaultChecked={defaults.isActive ?? true}
-            className="h-4 w-4 rounded border-zinc-300 accent-zinc-900"
+            className="h-4 w-4 rounded border-zinc-300 accent-brand-700"
           />
           Active (inactive users cannot sign in)
         </label>

@@ -196,7 +196,7 @@ export default async function SaleDetailPage({
             )}
             <Link
               href="/pos"
-              className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700"
+              className="inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               {t("New sale")}
             </Link>
