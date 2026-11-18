@@ -34,6 +34,10 @@ const UR: Record<string, string> = {
   "Open menu": "Menu kholen",
   "Close menu": "Menu band karein",
   "Sign out": "Log out",
+  'Only a manager can sell "{name}" below {price}.':
+    '"{name}" ko {price} se kam par sirf manager bech sakta hai.',
+  "Discount {d} is over the cashier limit of {pct}% ({cap}). Ask a manager to complete this bill.":
+    "Riayat {d} cashier ki had {pct}% ({cap}) se zyada hai. Yeh bill manager se mukammal karwayen.",
 
   // POS
   "Scan barcode or search product name / SKU, then press Enter…":
@@ -47,6 +51,7 @@ const UR: Record<string, string> = {
   service: "service",
   "in stock": "stock mein",
   "in cart": "cart mein",
+  designs: "design",
   "No products match": "Koi maal nahi mila",
   Cart: "Cart",
   item: "cheez",

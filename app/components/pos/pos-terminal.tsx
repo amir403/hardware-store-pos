@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   SearchIcon,
@@ -11,6 +11,8 @@ import {
   PauseCircleIcon,
   RotateCcwIcon,
   FileTextIcon,
+  LayersIcon,
+  ChevronDownIcon,
 } from "lucide-react";
 import {
   createSaleAction,
@@ -24,6 +26,7 @@ import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { useT } from "@/app/components/lang";
 import { ProductThumb } from "@/app/components/product-thumb";
+import { groupForGrid, type GridEntry } from "@/app/lib/variants";
 
 export type PosProduct = {
   id: string;
@@ -39,6 +42,10 @@ export type PosProduct = {
   trackStock: boolean;
   categoryName: string | null;
   imageUrl: string | null;
+  /** Set for designs of a product group; the grid folds them into one tile. */
+  groupId: string | null;
+  groupName: string | null;
+  variantName: string | null;
 };
 
 export type PosCustomer = {
@@ -185,11 +192,13 @@ export function PosTerminal({
     [products]
   );
 
+  const pool = useMemo(
+    () => (category ? products.filter((p) => p.categoryName === category) : products),
+    [products, category]
+  );
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pool = category
-      ? products.filter((p) => p.categoryName === category)
-      : products;
     if (!q) return pool.slice(0, category ? FILTERED_RESULTS : DEFAULT_RESULTS);
     return pool
       .filter(
@@ -199,7 +208,56 @@ export function PosTerminal({
           (p.barcode && p.barcode.toLowerCase().includes(q))
       )
       .slice(0, FILTERED_RESULTS);
-  }, [products, query, category]);
+  }, [pool, query, category]);
+
+  /**
+   * Browsing folds designs into one tile per group; a search lists matching
+   * designs one by one so a typed design name lands directly on it.
+   */
+  const gridEntries = useMemo<GridEntry<PosProduct>[]>(
+    () =>
+      query.trim()
+        ? results.map((product) => ({ kind: "product", product }))
+        : groupForGrid(pool).slice(0, category ? FILTERED_RESULTS : DEFAULT_RESULTS),
+    [query, results, pool, category]
+  );
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+
+  function renderProduct(product: PosProduct, label = product.name) {
+    const outOfStock = product.trackStock && product.stockQty <= 0;
+    const inCart = cart.find((l) => l.productId === product.id);
+    return (
+      <button
+        key={product.id}
+        type="button"
+        disabled={outOfStock}
+        onClick={() => addToCart(product)}
+        className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <ProductThumb src={product.imageUrl} name={product.name} size={44} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-zinc-900">{label}</p>
+            <p className="truncate text-xs text-zinc-400">
+              {product.sku ?? t("No SKU")}
+              {product.trackStock && ` · ${product.stockQty} ${product.unit} ${t("in stock")}`}
+              {!product.trackStock && ` · ${t("service")}`}
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-sm font-semibold text-zinc-900">
+            {formatMoney(priceFor(product, isWholesale), currency)}
+          </p>
+          {inCart && (
+            <p className="text-[11px] font-medium text-emerald-600">
+              ×{inCart.quantity} {t("in cart")}
+            </p>
+          )}
+        </div>
+      </button>
+    );
+  }
 
   const totals = useMemo(() => {
     let subtotal = 0;
@@ -580,42 +638,58 @@ export function PosTerminal({
         )}
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {results.map((product) => {
-            const outOfStock =
-              product.trackStock && product.stockQty <= 0;
-            const inCart = cart.find((l) => l.productId === product.id);
+          {gridEntries.map((entry) => {
+            if (entry.kind === "product") return renderProduct(entry.product);
+            const open = openGroupId === entry.groupId;
+            const prices = entry.designs.map((d) => priceFor(d, isWholesale));
+            const low = Math.min(...prices);
+            const high = Math.max(...prices);
+            const inCartCount = entry.designs.filter((d) =>
+              cart.some((l) => l.productId === d.id)
+            ).length;
             return (
-              <button
-                key={product.id}
-                type="button"
-                disabled={outOfStock}
-                onClick={() => addToCart(product)}
-                className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                <ProductThumb src={product.imageUrl} name={product.name} size={44} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-zinc-900">
-                    {product.name}
-                  </p>
-                  <p className="truncate text-xs text-zinc-400">
-                    {product.sku ?? t("No SKU")}
-                    {product.trackStock && ` · ${product.stockQty} ${product.unit} ${t("in stock")}`}
-                    {!product.trackStock && ` · ${t("service")}`}
-                  </p>
-                </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-zinc-900">
-                    {formatMoney(priceFor(product, isWholesale), currency)}
-                  </p>
-                  {inCart && (
-                    <p className="text-[11px] font-medium text-emerald-600">
-                      ×{inCart.quantity} {t("in cart")}
+              <Fragment key={entry.groupId}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setOpenGroupId(open ? null : entry.groupId)}
+                  className={`flex items-center justify-between gap-3 rounded-xl border bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm ${
+                    open ? "border-brand-500 ring-2 ring-brand-500/15" : "border-zinc-200"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ProductThumb
+                      src={entry.designs.find((d) => d.imageUrl)?.imageUrl}
+                      name={entry.name}
+                      size={44}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-900">{entry.name}</p>
+                      <p className="flex items-center gap-1 truncate text-xs text-brand-700">
+                        <LayersIcon className="h-3 w-3" />
+                        {entry.designs.length} {t("designs")}
+                        {inCartCount > 0 && (
+                          <span className="text-emerald-600"> · {inCartCount} {t("in cart")}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5 text-right">
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {formatMoney(low, currency)}
+                      {high > low && <span className="font-normal text-zinc-400"> +</span>}
                     </p>
-                  )}
-                </div>
-              </button>
+                    <ChevronDownIcon
+                      className={`h-4 w-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+                {open && (
+                  <div className="col-span-full grid origin-top animate-pop-in grid-cols-1 gap-2 rounded-xl border border-brand-200 bg-brand-50/60 p-2 sm:grid-cols-2">
+                    {entry.designs.map((d) => renderProduct(d, d.variantName ?? d.name))}
+                  </div>
+                )}
+              </Fragment>
             );
           })}
           {results.length === 0 && (

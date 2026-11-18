@@ -1,5 +1,6 @@
+import { Fragment } from "react";
 import Link from "next/link";
-import { PlusIcon, SearchIcon, PencilIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, PencilIcon, LayersIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
@@ -49,11 +50,15 @@ export default async function ProductsPage({
           categoryId ? { categoryId } : {},
         ],
       },
-      include: { category: { select: { name: true } } },
+      include: { category: { select: { name: true } }, group: { select: { name: true } } },
       orderBy: { name: "asc" },
       take: 200,
     }),
   ]);
+  const groupSizes = new Map<string, number>();
+  for (const p of products) {
+    if (p.groupId) groupSizes.set(p.groupId, (groupSizes.get(p.groupId) ?? 0) + 1);
+  }
 
   return (
     <>
@@ -136,19 +141,36 @@ export default async function ProductsPage({
                 </td>
               </tr>
             )}
-            {products.map((product) => {
+            {products.map((product, index) => {
               const stock = toNum(product.stockQty);
               const reorder = toNum(product.reorderLevel);
               const low = product.trackStock && reorder > 0 && stock <= reorder;
+              // Designs sort together ("Group – Design"), so a header goes before the first one.
+              const startsGroup =
+                product.groupId !== null && product.groupId !== products[index - 1]?.groupId;
 
               return (
-                <tr key={product.id} className="hover:bg-zinc-50">
-                  <td className="px-4 py-3">
+                <Fragment key={product.id}>
+                {startsGroup && (
+                  <tr className="bg-zinc-50">
+                    <td colSpan={6} className="px-4 py-2">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700">
+                        <LayersIcon className="h-3.5 w-3.5 text-brand-600" />
+                        {product.group?.name}
+                        <span className="font-normal text-zinc-400">
+                          · {groupSizes.get(product.groupId!)} designs
+                        </span>
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                <tr className="hover:bg-zinc-50">
+                  <td className={`py-3 pr-4 ${product.groupId ? "pl-10" : "pl-4"}`}>
                     <div className="flex items-center gap-3">
                       <ProductThumb src={product.imageUrl} name={product.name} />
                       <div className="min-w-0">
                         <p className="font-medium text-zinc-900">
-                          {product.name}
+                          {product.variantName ?? product.name}
                         </p>
                         <p className="text-xs text-zinc-400">
                           {product.sku ?? "No SKU"}
@@ -228,6 +250,7 @@ export default async function ProductsPage({
                     </div>
                   </td>
                 </tr>
+                </Fragment>
               );
             })}
           </tbody>

@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { useT } from "@/app/components/lang";
 
 export function UserMenu({
   name,
@@ -14,6 +15,7 @@ export function UserMenu({
   role: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const t = useT();
 
   return (
     <div className="flex items-center gap-3 border-t border-white/10 pt-4">
@@ -28,7 +30,8 @@ export function UserMenu({
       </div>
       <button
         type="button"
-        title="Sign out"
+        title={t("Sign out")}
+        aria-label={t("Sign out")}
         disabled={isPending}
         onClick={() => startTransition(() => logoutAction())}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"

@@ -169,10 +169,15 @@ model Product {
   isActive       Boolean  @default(true)
   imageUrl       String?
   categoryId     String?
+  // Set when this product is one design of a group (e.g. "Flower" of
+  // "Ceiling Panel 2x2"). Each design stays a full product with its own stock.
+  groupId        String?
+  variantName    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  group    ProductGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   saleItems           SaleItem[]
   purchaseItems       PurchaseItem[]
@@ -184,6 +189,19 @@ model Product {
 
   @@index([categoryId])
   @@index([name])
+  @@index([groupId])
+}
+
+// A family of near-identical products that differ only in design (ceiling
+// panels, tiles, handles…). It only ties designs together for display and
+// bulk pricing; stock, barcodes, photos and sales stay on each design.
+model ProductGroup {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
 }
 
 // The product photo, kept apart so product queries never drag image bytes

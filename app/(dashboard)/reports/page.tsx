@@ -551,18 +551,60 @@ export default async function ReportsPage({
               className="flex items-end gap-1 overflow-x-auto"
               style={{ minHeight: "10rem" }}
             >
-              {series.map((day) => {
+              {series.map((day, index) => {
                 const height = Math.round((day.revenue / peakDay) * 100);
                 const profitHeight =
                   day.revenue > 0
                     ? Math.round((Math.max(0, day.profit) / peakDay) * 100)
                     : 0;
+                // Edge days anchor their tooltip inward so the chart's scroll box never clips it.
+                const anchor =
+                  index < 3
+                    ? "left-0"
+                    : index > series.length - 4
+                      ? "right-0"
+                      : "left-1/2 -translate-x-1/2";
                 return (
                   <div
                     key={day.date.toISOString()}
-                    className="flex min-w-6 flex-1 flex-col items-center justify-end gap-1"
-                    title={`${formatDate(day.date)} · ${formatMoney(day.revenue, currency)} · ${day.count} bill${day.count === 1 ? "" : "s"}`}
+                    tabIndex={0}
+                    aria-label={`${formatDate(day.date)}: ${formatMoney(day.revenue, currency)} revenue, ${formatMoney(day.profit, currency)} gross profit, ${day.count} bills`}
+                    className="group relative flex min-w-6 flex-1 flex-col items-center justify-end gap-1 rounded-md outline-none hover:bg-zinc-100 focus-visible:bg-zinc-100"
                   >
+                    <div
+                      role="tooltip"
+                      className={`pointer-events-none absolute top-0 z-10 hidden w-max min-w-40 animate-pop-in rounded-lg bg-zinc-900 px-3 py-2 text-left text-xs text-zinc-300 shadow-lg group-hover:block group-focus-visible:block ${anchor}`}
+                    >
+                      <p className="mb-1 font-semibold text-white">{formatDate(day.date)}</p>
+                      {day.count === 0 ? (
+                        <p>No sales</p>
+                      ) : (
+                        <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 tabular-nums">
+                          <dt className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-sm bg-brand-500" /> Revenue
+                          </dt>
+                          <dd className="text-right font-medium text-white">
+                            {formatMoney(day.revenue, currency)}
+                          </dd>
+                          <dt className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-sm bg-emerald-500" /> Gross profit
+                          </dt>
+                          <dd className="text-right font-medium text-white">
+                            {formatMoney(day.profit, currency)}
+                          </dd>
+                          <dt>Margin</dt>
+                          <dd className="text-right">
+                            {day.revenue > 0 ? `${round2((day.profit / day.revenue) * 100)}%` : "—"}
+                          </dd>
+                          <dt>Bills</dt>
+                          <dd className="text-right">{day.count}</dd>
+                          <dt>Average bill</dt>
+                          <dd className="text-right">
+                            {formatMoney(round2(day.revenue / day.count), currency)}
+                          </dd>
+                        </dl>
+                      )}
+                    </div>
                     <div
                       className="flex w-full items-end justify-center gap-0.5"
                       style={{ height: "8rem" }}

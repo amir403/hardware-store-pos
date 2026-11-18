@@ -25,7 +25,10 @@ export default async function PosPage({
     prisma.product.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
-      include: { category: { select: { name: true } } },
+      include: {
+        category: { select: { name: true } },
+        group: { select: { name: true } },
+      },
     }),
     prisma.customer.findMany({
       orderBy: { name: "asc" },
@@ -74,6 +77,9 @@ export default async function PosPage({
     trackStock: p.trackStock,
     categoryName: p.category?.name ?? null,
     imageUrl: p.imageUrl,
+    groupId: p.groupId,
+    groupName: p.group?.name ?? null,
+    variantName: p.variantName,
   }));
 
   return (

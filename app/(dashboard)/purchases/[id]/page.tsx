@@ -8,6 +8,7 @@ import { formatDate, formatMoney, formatDateTime, formatQty, toNum } from "@/app
 import { purchaseSettlement } from "@/app/lib/payables";
 import { PrintButton } from "@/app/components/print-button";
 import { FlashToast } from "@/app/components/toast";
+import { CancelPurchaseButton } from "@/app/components/purchases/cancel-purchase-button";
 
 export const metadata = { title: "Purchase detail" };
 
@@ -30,7 +31,9 @@ export default async function PurchaseDetailPage({
     prisma.purchase.findUnique({
       where: { id },
       include: {
-        items: { include: { product: { select: { name: true } } } },
+        items: {
+          include: { product: { select: { name: true, trackStock: true, stockQty: true } } },
+        },
         supplier: { select: { id: true, name: true } },
         user: { select: { name: true } },
         payments: {
@@ -60,14 +63,22 @@ export default async function PurchaseDetailPage({
   if (!purchase) notFound();
 
   const { paid, returned, netTotal, due } = purchaseSettlement(purchase);
-  const canReturn = purchase.items.some(
-    (item) =>
-      toNum(item.quantity) >
-      purchase.returns
-        .flatMap((r) => r.items)
-        .filter((ri) => ri.purchaseItemId === item.id)
-        .reduce((sum, ri) => sum + toNum(ri.quantity), 0)
-  );
+  // What can still go back: not yet returned, and (for stocked items) still on the shelf.
+  const returnable = purchase.items
+    .map((item) => {
+      const notReturned =
+        toNum(item.quantity) -
+        purchase.returns
+          .flatMap((r) => r.items)
+          .filter((ri) => ri.purchaseItemId === item.id)
+          .reduce((sum, ri) => sum + toNum(ri.quantity), 0);
+      const quantity = item.product.trackStock
+        ? Math.min(notReturned, toNum(item.product.stockQty))
+        : notReturned;
+      return { purchaseItemId: item.id, quantity: Math.round(quantity * 1000) / 1000 };
+    })
+    .filter((line) => line.quantity > 0);
+  const canReturn = returnable.length > 0;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -87,6 +98,9 @@ export default async function PurchaseDetailPage({
             >
               Return to supplier
             </Link>
+          )}
+          {canReturn && (
+            <CancelPurchaseButton purchaseId={purchase.id} items={returnable} />
           )}
         </div>
       </div>

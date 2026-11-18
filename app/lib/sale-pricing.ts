@@ -1,5 +1,6 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import { round2, round3 } from "@/app/lib/format";
+import { translate, type T } from "@/app/lib/i18n";
 
 /**
  * Pricing shared by everything that builds a bill: completed sales, held bills
@@ -152,7 +153,8 @@ export async function priceSaleLines(
 export function cashierPricingProblem(
   lines: Pick<PricedLine, "productName" | "quantity" | "unitPrice" | "discount" | "listPrice" | "wholesalePrice">[],
   billDiscount: number,
-  opts: { wholesale: boolean; maxDiscountPct: number }
+  opts: { wholesale: boolean; maxDiscountPct: number },
+  t: T = (text, vars) => translate("en", text, vars)
 ): string | null {
   let listValue = 0;
   let discounts = billDiscount;
@@ -160,14 +162,20 @@ export function cashierPricingProblem(
     const list =
       opts.wholesale && line.wholesalePrice !== null ? line.wholesalePrice : line.listPrice;
     if (line.unitPrice < list) {
-      return `Only a manager can sell "${line.productName}" below ${list}.`;
+      return t('Only a manager can sell "{name}" below {price}.', {
+        name: line.productName,
+        price: list,
+      });
     }
     listValue += line.quantity * line.unitPrice;
     discounts += line.discount;
   }
   const cap = round2((listValue * opts.maxDiscountPct) / 100);
   if (round2(discounts) > cap) {
-    return `Discount ${round2(discounts)} is over the cashier limit of ${opts.maxDiscountPct}% (${cap}). Ask a manager to complete this bill.`;
+    return t(
+      "Discount {d} is over the cashier limit of {pct}% ({cap}). Ask a manager to complete this bill.",
+      { d: round2(discounts), pct: opts.maxDiscountPct, cap }
+    );
   }
   return null;
 }

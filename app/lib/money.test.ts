@@ -4,6 +4,18 @@ import { invoiceSettlement } from "./ledger";
 import { purchaseSettlement } from "./payables";
 import { cashierPricingProblem, nextDailyNumber, returnCredit } from "./sale-pricing";
 import { whatsappLink } from "./whatsapp";
+import { translate } from "./i18n";
+import { designName, groupForGrid } from "./variants";
+
+test("variants: designs of a group fold into one tile, in order", () => {
+  const p = (id: string, groupId: string | null) => ({ id, groupId, groupName: groupId && `Group ${groupId}` });
+  const grid = groupForGrid([p("a", null), p("b", "g1"), p("c", null), p("d", "g1"), p("e", "g2")]);
+  assert.deepEqual(
+    grid.map((e) => (e.kind === "product" ? e.product.id : `${e.name}:${e.designs.map((d) => d.id).join("")}`)),
+    ["a", "Group g1:bd", "c", "Group g2:e"]
+  );
+  assert.equal(designName(" Ceiling Panel 2x2 ", "Flower "), "Ceiling Panel 2x2 – Flower");
+});
 
 const sale = (o: Partial<Parameters<typeof invoiceSettlement>[0]> = {}) => ({
   total: 2000,
@@ -114,6 +126,14 @@ test("cashier: line and bill discounts together are capped", () => {
   assert.match(
     cashierPricingProblem([line({ discount: 60 })], 60, { wholesale: false, maxDiscountPct: 10 }) ?? "",
     /over the cashier limit/
+  );
+});
+
+test("cashier: the refusal is shown in the counter's language", () => {
+  const ur = (text: string, vars?: Record<string, string | number>) => translate("ur", text, vars);
+  assert.match(
+    cashierPricingProblem([line({ discount: 60 })], 60, { wholesale: false, maxDiscountPct: 10 }, ur) ?? "",
+    /manager se mukammal karwayen/
   );
 });
 

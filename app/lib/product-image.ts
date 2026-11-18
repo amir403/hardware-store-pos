@@ -18,6 +18,13 @@ export type ImageChange =
 export async function readImageChange(formData: FormData): Promise<ImageChange> {
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
+    if (/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
+      return {
+        kind: "error",
+        message:
+          "iPhone HEIC photos are not supported. Send it as JPG (iPhone: Settings → Camera → Formats → Most Compatible).",
+      };
+    }
     if (!file.type.startsWith("image/")) {
       return { kind: "error", message: "Choose a photo (JPG, PNG or WebP)." };
     }

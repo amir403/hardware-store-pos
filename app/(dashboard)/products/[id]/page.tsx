@@ -6,6 +6,9 @@ import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { PageHeader } from "@/app/components/page-header";
 import { ProductForm } from "@/app/components/product-form";
 import { updateProductAction } from "@/app/actions/products";
+import { ProductDesigns } from "@/app/components/product-designs";
+import { getSettings } from "@/app/lib/settings";
+import { toNum } from "@/app/lib/format";
 
 export const metadata = { title: "Edit product" };
 
@@ -19,13 +22,22 @@ export default async function EditProductPage({
 
   if (!hasRole(user, "ADMIN", "MANAGER")) notFound();
 
-  const [product, categories] = await Promise.all([
-    prisma.product.findUnique({ where: { id } }),
+  const [product, categories, groups, settings] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+      include: {
+        group: {
+          include: { products: { orderBy: { variantName: "asc" } } },
+        },
+      },
+    }),
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.productGroup.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getSettings(),
   ]);
 
   if (!product) notFound();
@@ -46,6 +58,8 @@ export default async function EditProductPage({
 
       <div className="rounded-xl border border-zinc-200 bg-white p-6">
         <ProductForm
+          // Remount after group changes rename the product, so the field shows it.
+          key={product.updatedAt.toISOString()}
           action={updateProductAction}
           categories={categories}
           isEdit={true}
@@ -69,6 +83,28 @@ export default async function EditProductPage({
           }}
         />
       </div>
+
+      <ProductDesigns
+        product={{ id: product.id, name: product.name, price: toNum(product.price) }}
+        currency={settings.currency}
+        groups={groups}
+        group={
+          product.group && {
+            id: product.group.id,
+            name: product.group.name,
+            designs: product.group.products.map((d) => ({
+              id: d.id,
+              variantName: d.variantName,
+              price: toNum(d.price),
+              stockQty: toNum(d.stockQty),
+              unit: d.unit,
+              trackStock: d.trackStock,
+              imageUrl: d.imageUrl,
+              barcode: d.barcode,
+            })),
+          }
+        }
+      />
     </div>
   );
 }

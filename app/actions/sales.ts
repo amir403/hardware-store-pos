@@ -7,6 +7,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { recordAudit } from "@/app/lib/audit";
+import { getT } from "@/app/lib/i18n-server";
 import {
   SaleValidationError,
   buildInvoiceNo,
@@ -113,7 +114,7 @@ export async function createSaleAction(
           const problem = cashierPricingProblem(lines, discountAmount, {
             wholesale: tier === "WHOLESALE",
             maxDiscountPct: settings.cashierMaxDiscountPct,
-          });
+          }, await getT());
           if (problem) throw new SaleValidationError(problem);
         }
 
