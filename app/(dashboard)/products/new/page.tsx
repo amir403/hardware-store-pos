@@ -22,7 +22,7 @@ export default async function NewProductPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <Link
         href="/products"
         className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"

@@ -80,7 +80,7 @@ export default async function NewPurchasePage({
     supplierFilter && supplierFilter !== "all" ? supplierFilter : "";
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <Link
         href={isReorder ? "/inventory" : "/purchases"}
         className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"

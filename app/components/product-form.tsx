@@ -64,7 +64,7 @@ export function ProductForm({
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1.5 sm:col-span-2">
           <label htmlFor="name" className={labelClass}>
             Product name *
@@ -81,46 +81,6 @@ export function ProductForm({
           {fieldError("name") && (
             <p className="text-xs text-red-600">{fieldError("name")}</p>
           )}
-        </div>
-
-        <div className="flex items-center gap-4 sm:col-span-2">
-          <ProductThumb src={shownImage} name={defaults.name || "Product photo"} size={72} />
-          <div className="flex flex-col gap-1.5">
-            <label className="inline-flex h-9 w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/15">
-              <ImagePlusIcon className="h-4 w-4" />
-              {shownImage ? "Change photo" : "Add photo"}
-              <input
-                type="file"
-                name="image"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (preview) URL.revokeObjectURL(preview);
-                  setPreview(file ? URL.createObjectURL(file) : null);
-                  if (file) setRemoveImage(false);
-                }}
-              />
-            </label>
-            {defaults.imageUrl && !preview && (
-              <label className="flex items-center gap-2 text-xs text-zinc-600">
-                <input
-                  type="checkbox"
-                  name="removeImage"
-                  checked={removeImage}
-                  onChange={(e) => setRemoveImage(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-zinc-300"
-                />
-                Remove photo
-              </label>
-            )}
-            <p className="text-xs text-zinc-400">
-              A clear photo helps the cashier pick the right item. JPG, PNG or WebP.
-            </p>
-            {fieldError("image") && (
-              <p className="text-xs text-red-600">{fieldError("image")}</p>
-            )}
-          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -192,6 +152,44 @@ export function ProductForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="stockQty" className={labelClass}>
+            Current stock
+          </label>
+          <input
+            id="stockQty"
+            name="stockQty"
+            type="number"
+            step="0.001"
+            min="0"
+            defaultValue={defaults.stockQty}
+            disabled={isEdit}
+            title={isEdit ? "Stock is managed via purchases, sales and adjustments" : undefined}
+            className={inputClass}
+          />
+          {fieldError("stockQty") && (
+            <p className="text-xs text-red-600">{fieldError("stockQty")}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="reorderLevel" className={labelClass}>
+            Reorder level
+          </label>
+          <input
+            id="reorderLevel"
+            name="reorderLevel"
+            type="number"
+            step="0.001"
+            min="0"
+            defaultValue={defaults.reorderLevel}
+            className={inputClass}
+          />
+          {fieldError("reorderLevel") && (
+            <p className="text-xs text-red-600">{fieldError("reorderLevel")}</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -272,42 +270,44 @@ export function ProductForm({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="stockQty" className={labelClass}>
-            Current stock
-          </label>
-          <input
-            id="stockQty"
-            name="stockQty"
-            type="number"
-            step="0.001"
-            min="0"
-            defaultValue={defaults.stockQty}
-            disabled={isEdit}
-            title={isEdit ? "Stock is managed via purchases, sales and adjustments" : undefined}
-            className={inputClass}
-          />
-          {fieldError("stockQty") && (
-            <p className="text-xs text-red-600">{fieldError("stockQty")}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="reorderLevel" className={labelClass}>
-            Reorder level
-          </label>
-          <input
-            id="reorderLevel"
-            name="reorderLevel"
-            type="number"
-            step="0.001"
-            min="0"
-            defaultValue={defaults.reorderLevel}
-            className={inputClass}
-          />
-          {fieldError("reorderLevel") && (
-            <p className="text-xs text-red-600">{fieldError("reorderLevel")}</p>
-          )}
+        <div className="flex items-center gap-4 sm:col-span-2">
+          <ProductThumb src={shownImage} name={defaults.name || "Product photo"} size={72} />
+          <div className="flex flex-col gap-1.5">
+            <label className="inline-flex h-9 w-fit cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/15">
+              <ImagePlusIcon className="h-4 w-4" />
+              {shownImage ? "Change photo" : "Add photo"}
+              <input
+                type="file"
+                name="image"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (preview) URL.revokeObjectURL(preview);
+                  setPreview(file ? URL.createObjectURL(file) : null);
+                  if (file) setRemoveImage(false);
+                }}
+              />
+            </label>
+            {defaults.imageUrl && !preview && (
+              <label className="flex items-center gap-2 text-xs text-zinc-600">
+                <input
+                  type="checkbox"
+                  name="removeImage"
+                  checked={removeImage}
+                  onChange={(e) => setRemoveImage(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-zinc-300"
+                />
+                Remove photo
+              </label>
+            )}
+            <p className="text-xs text-zinc-400">
+              A clear photo helps the cashier pick the right item. JPG, PNG or WebP.
+            </p>
+            {fieldError("image") && (
+              <p className="text-xs text-red-600">{fieldError("image")}</p>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -327,7 +327,7 @@ export function ProductForm({
           )}
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-zinc-700 sm:col-span-2">
+        <label className="flex items-center gap-2 text-sm text-zinc-700 sm:col-span-2 lg:col-span-4">
           <input
             type="checkbox"
             name="trackStock"

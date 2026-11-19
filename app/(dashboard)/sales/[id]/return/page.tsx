@@ -69,7 +69,7 @@ export default async function ReturnItemsPage({
   const { netTotal, settled } = invoiceSettlement(sale);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="mb-4">
         <Link
           href={`/sales/${sale.id}`}

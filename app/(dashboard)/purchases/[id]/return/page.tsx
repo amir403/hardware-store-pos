@@ -56,7 +56,7 @@ export default async function ReturnToSupplierPage({
   });
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <div className="mb-4">
         <Link
           href={`/purchases/${purchase.id}`}

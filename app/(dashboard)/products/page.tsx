@@ -1,7 +1,19 @@
 import { variantLabel } from "@/app/lib/variants";
 import { Fragment } from "react";
 import Link from "next/link";
-import { PlusIcon, SearchIcon, PencilIcon, LayersIcon, TagsIcon, ChevronDownIcon } from "lucide-react";
+import {
+  PlusIcon,
+  SearchIcon,
+  PencilIcon,
+  LayersIcon,
+  TagsIcon,
+  ChevronDownIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { CategoryManager } from "@/app/components/category-manager";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
@@ -15,10 +27,29 @@ import { ProductThumb } from "@/app/components/product-thumb";
 
 export const metadata = { title: "Products" };
 
+const PAGE_SIZE = 50;
+const SORTS = ["name", "price", "stock"] as const;
+type Sort = (typeof SORTS)[number];
+const STOCK_FILTERS = [
+  { value: "", label: "All stock" },
+  { value: "low", label: "Low stock" },
+  { value: "out", label: "Out of stock" },
+  { value: "inactive", label: "Inactive" },
+] as const;
+
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; created?: string; updated?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+    stock?: string;
+    sort?: string;
+    dir?: string;
+    page?: string;
+    created?: string;
+    updated?: string;
+  }>;
 }) {
   const [user, settings, params] = await Promise.all([
     getCurrentUser(),
@@ -30,43 +61,96 @@ export default async function ProductsPage({
 
   const q = params.q?.trim() ?? "";
   const categoryId = params.category?.trim() ?? "";
+  const stockFilter = STOCK_FILTERS.find((f) => f.value === params.stock)?.value ?? "";
+  const sort = SORTS.includes(params.sort as Sort) ? (params.sort as Sort) : "name";
+  const dir: "asc" | "desc" = params.dir === "desc" ? "desc" : "asc";
+  const page = Math.max(1, Math.floor(Number(params.page)) || 1);
 
-  const [categories, products] = await Promise.all([
+  const where: Prisma.ProductWhereInput = {
+    AND: [
+      q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { sku: { contains: q, mode: "insensitive" } },
+              { barcode: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {},
+      categoryId ? { categoryId } : {},
+      stockFilter === "out" ? { trackStock: true, stockQty: { lte: 0 } } : {},
+      stockFilter === "low"
+        ? {
+            trackStock: true,
+            stockQty: { gt: 0, lte: prisma.product.fields.reorderLevel },
+            reorderLevel: { gt: 0 },
+          }
+        : {},
+      stockFilter === "inactive" ? { isActive: false } : {},
+    ],
+  };
+
+  const [categories, products, total] = await Promise.all([
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     prisma.product.findMany({
-      where: {
-        AND: [
-          q
-            ? {
-                OR: [
-                  { name: { contains: q, mode: "insensitive" } },
-                  { sku: { contains: q, mode: "insensitive" } },
-                  { barcode: { contains: q, mode: "insensitive" } },
-                ],
-              }
-            : {},
-          categoryId ? { categoryId } : {},
-        ],
+      where,
+      include: {
+        category: { select: { name: true } },
+        group: { select: { name: true, _count: { select: { products: true } } } },
       },
-      include: { category: { select: { name: true } }, group: { select: { name: true } } },
-      orderBy: { name: "asc" },
-      take: 200,
+      orderBy:
+        sort === "name"
+          ? { name: dir }
+          : sort === "price"
+            ? [{ price: dir }, { name: "asc" }]
+            : // Untracked services have no real stock; keep them last.
+              [{ trackStock: "desc" }, { stockQty: dir }, { name: "asc" }],
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
     }),
+    prisma.product.count({ where }),
   ]);
-  const groupSizes = new Map<string, number>();
-  for (const p of products) {
-    if (p.groupId) groupSizes.set(p.groupId, (groupSizes.get(p.groupId) ?? 0) + 1);
-  }
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Designs only sit next to each other when sorted by name.
+  const showGroups = sort === "name";
+
+  /** This page's URL with some params changed; empty values are dropped. */
+  const href = (changes: Record<string, string | number | undefined>) => {
+    const next = new URLSearchParams();
+    const merged = { q, category: categoryId, stock: stockFilter, sort, dir, page, ...changes };
+    for (const [key, value] of Object.entries(merged)) {
+      const isDefault = (key === "sort" && value === "name") || (key === "dir" && value === "asc") || (key === "page" && value === 1);
+      if (value !== undefined && value !== "" && !isDefault) next.set(key, String(value));
+    }
+    const qs = next.toString();
+    return qs ? `/products?${qs}` : "/products";
+  };
+
+  const sortHeader = (col: Sort, label: string, alignRight = false) => {
+    const active = sort === col;
+    const Arrow = active && dir === "desc" ? ArrowDownIcon : ArrowUpIcon;
+    return (
+      <th className={`px-4 py-3 font-medium ${alignRight ? "text-right" : ""}`} aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
+        <Link
+          href={href({ sort: col, dir: active && dir === "asc" ? "desc" : "asc", page: 1 })}
+          className={`inline-flex items-center gap-1 transition hover:text-zinc-900 ${active ? "text-zinc-900" : ""}`}
+        >
+          {label}
+          <Arrow className={`h-3 w-3 ${active ? "" : "opacity-0"}`} />
+        </Link>
+      </th>
+    );
+  };
 
   return (
     <>
       <PageHeader
         title="Products"
-        description={`${products.length} product${products.length === 1 ? "" : "s"} in catalog`}
+        description={`${total} product${total === 1 ? "" : "s"}${q || categoryId || stockFilter ? " found" : " in catalog"}`}
         actions={
           canManage && (
             <Link
@@ -111,6 +195,19 @@ export default async function ProductsPage({
             </option>
           ))}
         </select>
+        <select
+          name="stock"
+          defaultValue={stockFilter}
+          className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-brand-600"
+        >
+          {STOCK_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        {sort !== "name" && <input type="hidden" name="sort" value={sort} />}
+        {dir !== "asc" && <input type="hidden" name="dir" value={dir} />}
         <button
           type="submit"
           className="h-10 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
@@ -140,10 +237,10 @@ export default async function ProductsPage({
         <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-              <th className="px-4 py-3 font-medium">Product</th>
+              {sortHeader("name", "Product")}
               <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 text-right font-medium">Price</th>
-              <th className="px-4 py-3 text-right font-medium">Stock</th>
+              {sortHeader("price", "Price", true)}
+              {sortHeader("stock", "Stock", true)}
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3" />
             </tr>
@@ -165,6 +262,7 @@ export default async function ProductsPage({
               const low = product.trackStock && reorder > 0 && stock <= reorder;
               // Designs sort together ("Group – Design"), so a header goes before the first one.
               const startsGroup =
+                showGroups &&
                 product.groupId !== null && product.groupId !== products[index - 1]?.groupId;
 
               return (
@@ -176,19 +274,19 @@ export default async function ProductsPage({
                         <LayersIcon className="h-3.5 w-3.5 text-brand-600" />
                         {product.group?.name}
                         <span className="font-normal text-zinc-400">
-                          · {groupSizes.get(product.groupId!)} designs
+                          · {product.group?._count.products} designs
                         </span>
                       </span>
                     </td>
                   </tr>
                 )}
                 <tr className="hover:bg-zinc-50">
-                  <td className={`py-3 pr-4 ${product.groupId ? "pl-10" : "pl-4"}`}>
+                  <td className={`py-3 pr-4 ${showGroups && product.groupId ? "pl-10" : "pl-4"}`}>
                     <div className="flex items-center gap-3">
                       <ProductThumb src={product.imageUrl} name={product.name} />
                       <div className="min-w-0">
                         <p className="font-medium text-zinc-900">
-                          {variantLabel(product) || product.name}
+                          {(showGroups && variantLabel(product)) || product.name}
                         </p>
                         <p className="text-xs text-zinc-400">
                           {product.sku ?? "No SKU"}
@@ -274,6 +372,41 @@ export default async function ProductsPage({
           </tbody>
         </table>
       </div>
+
+      {products.length > 0 && (
+        <nav className="mt-3 flex items-center justify-between text-sm text-zinc-500" aria-label="Pages">
+          <span className="tabular-nums">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+          </span>
+          {pageCount > 1 && (
+            <div className="flex items-center gap-1">
+              {[
+                { to: page - 1, label: "Previous", Icon: ChevronLeftIcon },
+                { to: page + 1, label: "Next", Icon: ChevronRightIcon },
+              ].map(({ to, label, Icon }) =>
+                to < 1 || to > pageCount ? (
+                  <span key={label} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-300">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                ) : (
+                  <Link
+                    key={label}
+                    href={href({ page: to })}
+                    title={label}
+                    aria-label={label}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </Link>
+                )
+              )}
+              <span className="ml-1 tabular-nums">
+                Page {page} of {pageCount}
+              </span>
+            </div>
+          )}
+        </nav>
+      )}
     </>
   );
 }
