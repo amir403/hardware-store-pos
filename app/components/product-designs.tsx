@@ -8,6 +8,7 @@ import {
   joinGroupAction,
   leaveGroupAction,
   makeGroupAction,
+  renameDesignAction,
   setGroupPriceAction,
   type GroupResult,
 } from "@/app/actions/product-groups";
@@ -16,10 +17,13 @@ import { ProductThumb } from "@/app/components/product-thumb";
 import { SubmitButton } from "@/app/components/submit-button";
 import { useSuccessToast } from "@/app/components/toast";
 import { formatMoney, formatQty } from "@/app/lib/format";
+import { variantLabel } from "@/app/lib/variants";
 
 export type DesignRow = {
   id: string;
   variantName: string | null;
+  size: string | null;
+  color: string | null;
   price: number;
   stockQty: number;
   unit: string;
@@ -42,6 +46,26 @@ function FormError({ state }: { state: GroupResult }) {
   ) : null;
 }
 
+/** Design, size and colour — any one is enough to tell designs apart. */
+function VariantInputs({ current }: { current?: Pick<DesignRow, "variantName" | "size" | "color"> }) {
+  return (
+    <div className="grid grid-cols-3 gap-2.5">
+      <label className={labelClass}>
+        Design
+        <input name="variantName" maxLength={80} defaultValue={current?.variantName ?? ""} placeholder="e.g. Flower" className={`${inputClass} mt-1`} />
+      </label>
+      <label className={labelClass}>
+        Size
+        <input name="size" maxLength={40} defaultValue={current?.size ?? ""} placeholder="e.g. 2x2" className={`${inputClass} mt-1`} />
+      </label>
+      <label className={labelClass}>
+        Colour
+        <input name="color" maxLength={40} defaultValue={current?.color ?? ""} placeholder="e.g. White" className={`${inputClass} mt-1`} />
+      </label>
+    </div>
+  );
+}
+
 /**
  * Designs of the same item (ceiling panel patterns, tile prints…). Each design
  * is its own product with its own stock, barcode and photo; the group only
@@ -62,6 +86,7 @@ export function ProductDesigns({
   const [joinState, joinAction] = useGroupForm(joinGroupAction, "Added to the group");
   const [addState, addAction] = useGroupForm(addDesignAction, "Design added — open it to add a photo");
   const [priceState, priceAction] = useGroupForm(setGroupPriceAction, "Price set for every design");
+  const [renameState, renameAction] = useGroupForm(renameDesignAction, "Names saved");
 
   return (
     <section className="mt-6 rounded-xl border border-zinc-200 bg-white p-6">
@@ -88,10 +113,7 @@ export function ProductDesigns({
               Item name (shared by all designs)
               <input name="groupName" required maxLength={80} defaultValue={product.name} className={`${inputClass} mt-1`} />
             </label>
-            <label className={labelClass}>
-              This design&apos;s name
-              <input name="variantName" required maxLength={80} placeholder="e.g. Flower" className={`${inputClass} mt-1`} />
-            </label>
+            <VariantInputs />
             <FormError state={makeState} />
             <SubmitButton>Make a group</SubmitButton>
           </form>
@@ -113,10 +135,7 @@ export function ProductDesigns({
                   ))}
                 </select>
               </label>
-              <label className={labelClass}>
-                This design&apos;s name
-                <input name="variantName" required maxLength={80} placeholder="e.g. Marble" className={`${inputClass} mt-1`} />
-              </label>
+              <VariantInputs />
               <FormError state={joinState} />
               <SubmitButton>Add to group</SubmitButton>
             </form>
@@ -127,10 +146,10 @@ export function ProductDesigns({
           <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200">
             {group.designs.map((d) => (
               <li key={d.id} className={`flex items-center gap-3 px-3 py-2 ${d.id === product.id ? "bg-brand-50" : ""}`}>
-                <ProductThumb src={d.imageUrl} name={d.variantName ?? ""} size={36} />
+                <ProductThumb src={d.imageUrl} name={variantLabel(d)} size={36} />
                 <div className="min-w-0 flex-1">
                   <Link href={`/products/${d.id}`} className="font-medium text-zinc-900 hover:underline">
-                    {d.variantName ?? "—"}
+                    {variantLabel(d) || "—"}
                   </Link>
                   <p className="text-xs text-zinc-400">
                     {d.barcode ?? "no barcode"}
@@ -152,10 +171,7 @@ export function ProductDesigns({
               <h3 className="text-sm font-semibold text-zinc-900">Add a design</h3>
               <p className="text-xs text-zinc-500">Category, unit, cost and tax are copied from this design.</p>
               <input type="hidden" name="templateId" value={product.id} />
-              <label className={labelClass}>
-                Design name *
-                <input name="variantName" required maxLength={80} placeholder="e.g. Marble" className={`${inputClass} mt-1`} />
-              </label>
+              <VariantInputs />
               <div className="grid grid-cols-2 gap-2.5">
                 <label className={labelClass}>
                   Price *
@@ -179,6 +195,21 @@ export function ProductDesigns({
             </form>
 
             <div className="flex flex-col gap-6">
+              <form action={renameAction} className="flex flex-col gap-2.5">
+                <h3 className="text-sm font-semibold text-zinc-900">Names</h3>
+                <p className="text-xs text-zinc-500">
+                  Changing the item name renames all {group.designs.length} designs.
+                </p>
+                <input type="hidden" name="productId" value={product.id} />
+                <label className={labelClass}>
+                  Item name *
+                  <input name="groupName" required maxLength={80} defaultValue={group.name} className={`${inputClass} mt-1`} />
+                </label>
+                <VariantInputs current={group.designs.find((d) => d.id === product.id)} />
+                <FormError state={renameState} />
+                <SubmitButton>Save names</SubmitButton>
+              </form>
+
               <form action={priceAction} className="flex flex-col gap-2.5">
                 <h3 className="text-sm font-semibold text-zinc-900">Price for every design</h3>
                 <input type="hidden" name="groupId" value={group.id} />

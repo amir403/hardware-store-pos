@@ -81,6 +81,8 @@ export default async function PosPage({
     groupId: p.groupId,
     groupName: p.group?.name ?? null,
     variantName: p.variantName,
+    size: p.size,
+    color: p.color,
   }));
 
   return (

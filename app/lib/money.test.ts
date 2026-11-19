@@ -15,6 +15,11 @@ test("variants: designs of a group fold into one tile, in order", () => {
     ["a", "Group g1:bd", "c", "Group g2:e"]
   );
   assert.equal(designName(" Ceiling Panel 2x2 ", "Flower "), "Ceiling Panel 2x2 – Flower");
+  assert.equal(
+    designName("Tile", { variantName: "Marble", size: " 2x2 ", color: "" }),
+    "Tile – Marble · 2x2"
+  );
+  assert.equal(designName("Pipe", { size: "1/2\"", color: "Red" }), "Pipe – 1/2\" · Red");
 });
 
 const sale = (o: Partial<Parameters<typeof invoiceSettlement>[0]> = {}) => ({

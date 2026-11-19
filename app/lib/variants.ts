@@ -1,8 +1,23 @@
 // Client-safe helpers for product groups (designs of one item).
 
+export type VariantFields = {
+  variantName?: string | null;
+  size?: string | null;
+  color?: string | null;
+};
+
+/** What tells one design from the others, e.g. "Flower · 2x2 · White". */
+export function variantLabel(v: VariantFields): string {
+  return [v.variantName, v.size, v.color]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** The full product name a design is sold and searched under. */
-export function designName(groupName: string, variantName: string): string {
-  return `${groupName.trim()} – ${variantName.trim()}`;
+export function designName(groupName: string, variant: string | VariantFields): string {
+  const label = typeof variant === "string" ? variant.trim() : variantLabel(variant);
+  return `${groupName.trim()} – ${label}`;
 }
 
 export type GridEntry<P> =

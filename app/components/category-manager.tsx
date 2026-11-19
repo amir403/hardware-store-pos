@@ -1,8 +1,5 @@
-import { redirect } from "next/navigation";
 import { Trash2Icon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
-import { getCurrentUser, hasRole } from "@/app/lib/auth";
-import { PageHeader } from "@/app/components/page-header";
 import { CategoryForm } from "@/app/components/category-form";
 import { SubmitButton } from "@/app/components/submit-button";
 import {
@@ -12,14 +9,8 @@ import {
 } from "@/app/actions/categories";
 import { ConfirmForm } from "@/app/components/confirm-form";
 
-export const metadata = { title: "Categories" };
-
-export default async function CategoriesPage() {
-  const user = await getCurrentUser();
-  if (!hasRole(user, "ADMIN", "MANAGER")) {
-    redirect("/");
-  }
-
+/** Category list with inline rename/delete and an add form. Callers gate it to managers. */
+export async function CategoryManager() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { products: true } } },
@@ -27,11 +18,6 @@ export default async function CategoriesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Categories"
-        description="Organize your catalog"
-      />
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Category list */}
         <div className="lg:col-span-2">

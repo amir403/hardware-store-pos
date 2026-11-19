@@ -95,6 +95,8 @@ export default async function EditProductPage({
             designs: product.group.products.map((d) => ({
               id: d.id,
               variantName: d.variantName,
+              size: d.size,
+              color: d.color,
               price: toNum(d.price),
               stockQty: toNum(d.stockQty),
               unit: d.unit,

@@ -6,12 +6,18 @@ import { prisma } from "@/app/lib/prisma";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { recordAudit } from "@/app/lib/audit";
 import { round2, round3, toNum } from "@/app/lib/format";
-import { designName } from "@/app/lib/variants";
+import { designName, variantLabel, type VariantFields } from "@/app/lib/variants";
 
 export type GroupResult = { ok?: true; error?: string };
 
 const nameField = z.string().trim().min(1, "Enter a name.").max(80);
 const money = z.coerce.number().min(0.01, "Price must be greater than 0").max(99_999_999);
+const optionalText = (max: number) =>
+  z.string().trim().max(max).optional().transform((v) => v || null);
+// Design, size and colour are each optional, but a design needs at least one.
+const variantShape = { variantName: optionalText(80), size: optionalText(40), color: optionalText(40) };
+const hasVariant = (v: VariantFields) => variantLabel(v) !== "";
+const variantMessage = { message: "Enter a design, size or colour." };
 
 async function requireManager() {
   const user = await getActionUser();
@@ -30,16 +36,17 @@ function revalidateProducts() {
 export async function makeGroupAction(_prev: GroupResult, formData: FormData): Promise<GroupResult> {
   await requireManager();
   const parsed = z
-    .object({ productId: z.string().min(1), groupName: nameField, variantName: nameField })
+    .object({ productId: z.string().min(1), groupName: nameField, ...variantShape })
+    .refine(hasVariant, variantMessage)
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-  const { productId, groupName, variantName } = parsed.data;
+  const { productId, groupName, ...variant } = parsed.data;
 
   await prisma.$transaction(async (tx) => {
     const group = await tx.productGroup.create({ data: { name: groupName } });
     await tx.product.update({
       where: { id: productId },
-      data: { groupId: group.id, variantName, name: designName(groupName, variantName) },
+      data: { groupId: group.id, ...variant, name: designName(groupName, variant) },
     });
   });
   revalidateProducts();
@@ -50,16 +57,17 @@ export async function makeGroupAction(_prev: GroupResult, formData: FormData): P
 export async function joinGroupAction(_prev: GroupResult, formData: FormData): Promise<GroupResult> {
   await requireManager();
   const parsed = z
-    .object({ productId: z.string().min(1), groupId: z.string().min(1, "Choose a group."), variantName: nameField })
+    .object({ productId: z.string().min(1), groupId: z.string().min(1, "Choose a group."), ...variantShape })
+    .refine(hasVariant, variantMessage)
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-  const { productId, groupId, variantName } = parsed.data;
+  const { productId, groupId, ...variant } = parsed.data;
 
   const group = await prisma.productGroup.findUnique({ where: { id: groupId } });
   if (!group) return { error: "That group no longer exists." };
   await prisma.product.update({
     where: { id: productId },
-    data: { groupId, variantName, name: designName(group.name, variantName) },
+    data: { groupId, ...variant, name: designName(group.name, variant) },
   });
   revalidateProducts();
   return { ok: true };
@@ -74,12 +82,13 @@ export async function addDesignAction(_prev: GroupResult, formData: FormData): P
   const parsed = z
     .object({
       templateId: z.string().min(1),
-      variantName: nameField,
+      ...variantShape,
       barcode: z.string().trim().max(60).transform((v) => v || null),
       sku: z.string().trim().max(40).transform((v) => v || null),
       price: money,
       stockQty: z.coerce.number().min(0).max(9_999_999).default(0),
     })
+    .refine(hasVariant, variantMessage)
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const data = parsed.data;
@@ -101,8 +110,10 @@ export async function addDesignAction(_prev: GroupResult, formData: FormData): P
   await prisma.$transaction(async (tx) => {
     const created = await tx.product.create({
       data: {
-        name: designName(template.group!.name, data.variantName),
+        name: designName(template.group!.name, data),
         variantName: data.variantName,
+        size: data.size,
+        color: data.color,
         groupId: template.group!.id,
         sku: data.sku,
         barcode: data.barcode,
@@ -127,6 +138,43 @@ export async function addDesignAction(_prev: GroupResult, formData: FormData): P
           quantityChange: stockQty,
           reason: "Opening stock (new design)",
           userId: user.id,
+        },
+      });
+    }
+  });
+  revalidateProducts();
+  return { ok: true };
+}
+
+/**
+ * Rename the group and/or this design. Every design's full name is rebuilt so
+ * "Old Name – Flower" never lingers on the others.
+ */
+export async function renameDesignAction(_prev: GroupResult, formData: FormData): Promise<GroupResult> {
+  await requireManager();
+  const parsed = z
+    .object({ productId: z.string().min(1), groupName: nameField, ...variantShape })
+    .refine(hasVariant, variantMessage)
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const { productId, groupName, ...variant } = parsed.data;
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { group: { include: { products: true } } },
+  });
+  if (!product?.group) return { error: "That group no longer exists." };
+  const group = product.group;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productGroup.update({ where: { id: group.id }, data: { name: groupName } });
+    for (const design of group.products) {
+      const fields = design.id === productId ? variant : design;
+      await tx.product.update({
+        where: { id: design.id },
+        data: {
+          ...(design.id === productId ? variant : {}),
+          name: designName(groupName, fields),
         },
       });
     }
@@ -191,7 +239,7 @@ export async function leaveGroupAction(formData: FormData): Promise<void> {
   if (!product?.groupId) return;
 
   await prisma.$transaction(async (tx) => {
-    await tx.product.update({ where: { id: productId }, data: { groupId: null, variantName: null } });
+    await tx.product.update({ where: { id: productId }, data: { groupId: null, variantName: null, size: null, color: null } });
     if ((await tx.product.count({ where: { groupId: product.groupId } })) === 0) {
       await tx.productGroup.delete({ where: { id: product.groupId! } });
     }

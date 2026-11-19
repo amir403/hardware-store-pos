@@ -1,6 +1,8 @@
+import { variantLabel } from "@/app/lib/variants";
 import { Fragment } from "react";
 import Link from "next/link";
-import { PlusIcon, SearchIcon, PencilIcon, LayersIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, PencilIcon, LayersIcon, TagsIcon, ChevronDownIcon } from "lucide-react";
+import { CategoryManager } from "@/app/components/category-manager";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
@@ -117,6 +119,22 @@ export default async function ProductsPage({
         </button>
       </form>
 
+      {canManage && (
+        <details className="group/cat mb-4 rounded-xl border border-zinc-200 bg-white">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-zinc-700 hover:text-zinc-900 [&::-webkit-details-marker]:hidden">
+            <TagsIcon className="h-4 w-4 text-brand-600" />
+            Categories
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
+              {categories.length}
+            </span>
+            <ChevronDownIcon className="ml-auto h-4 w-4 text-zinc-400 transition-transform group-open/cat:rotate-180" />
+          </summary>
+          <div className="border-t border-zinc-100 p-4">
+            <CategoryManager />
+          </div>
+        </details>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
         <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
@@ -170,7 +188,7 @@ export default async function ProductsPage({
                       <ProductThumb src={product.imageUrl} name={product.name} />
                       <div className="min-w-0">
                         <p className="font-medium text-zinc-900">
-                          {product.variantName ?? product.name}
+                          {variantLabel(product) || product.name}
                         </p>
                         <p className="text-xs text-zinc-400">
                           {product.sku ?? "No SKU"}

@@ -172,7 +172,9 @@ model Product {
   // Set when this product is one design of a group (e.g. "Flower" of
   // "Ceiling Panel 2x2"). Each design stays a full product with its own stock.
   groupId        String?
-  variantName    String?
+  variantName    String? // design / pattern, e.g. "Flower"
+  size           String?
+  color          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

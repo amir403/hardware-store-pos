@@ -26,7 +26,7 @@ import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { useT } from "@/app/components/lang";
 import { ProductThumb } from "@/app/components/product-thumb";
-import { groupForGrid, type GridEntry } from "@/app/lib/variants";
+import { groupForGrid, variantLabel, type GridEntry } from "@/app/lib/variants";
 import { toneFor } from "@/app/lib/category-colors";
 
 export type PosProduct = {
@@ -49,6 +49,8 @@ export type PosProduct = {
   groupId: string | null;
   groupName: string | null;
   variantName: string | null;
+  size: string | null;
+  color: string | null;
 };
 
 export type PosCustomer = {
@@ -714,7 +716,7 @@ export function PosTerminal({
                 </button>
                 {open && (
                   <div className="col-span-full grid origin-top animate-pop-in grid-cols-1 gap-2 rounded-xl border border-brand-200 bg-brand-50/60 p-2 sm:grid-cols-2">
-                    {entry.designs.map((d) => renderProduct(d, d.variantName ?? d.name))}
+                    {entry.designs.map((d) => renderProduct(d, variantLabel(d) || d.name))}
                   </div>
                 )}
               </Fragment>

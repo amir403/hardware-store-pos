@@ -35,7 +35,6 @@ export default async function DashboardLayout({
     { href: "/products", label: "Products", icon: "products", group: "Stock" },
     ...(isManager
       ? ([
-          { href: "/categories", label: "Categories", icon: "categories", group: "Stock" },
           { href: "/inventory", label: "Inventory", icon: "inventory", group: "Stock" },
           { href: "/purchases", label: "Purchases", icon: "purchases", group: "Stock" },
           { href: "/labels", label: "Labels", icon: "labels", group: "Stock" },

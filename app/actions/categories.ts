@@ -47,7 +47,6 @@ export async function createCategoryAction(
     return { error: "Failed to create the category." };
   }
 
-  revalidatePath("/categories");
   revalidatePath("/products");
   return { error: undefined, fieldErrors: undefined };
 }
@@ -70,7 +69,6 @@ export async function renameCategoryAction(formData: FormData) {
   }
 
   await prisma.category.update({ where: { id }, data: { name } });
-  revalidatePath("/categories");
   revalidatePath("/products");
 }
 
@@ -89,6 +87,5 @@ export async function deleteCategoryAction(formData: FormData) {
   if (productCount > 0) return;
 
   await prisma.category.delete({ where: { id } });
-  revalidatePath("/categories");
   revalidatePath("/products");
 }
