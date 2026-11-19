@@ -9,14 +9,19 @@ export function ProductThumb({
   src,
   name,
   size = 40,
+  tone,
 }: {
   src: string | null | undefined;
   name: string;
   size?: number;
+  /** Background + icon colour for the no-photo tile, e.g. the category's tone. */
+  tone?: string;
 }) {
   return (
     <span
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 text-zinc-400"
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 ${
+        src ? "bg-zinc-100" : (tone ?? "bg-zinc-100 text-zinc-400")
+      }`}
       style={{ width: size, height: size }}
     >
       {src ? (

@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/app/lib/auth";
 import { NavLinks, type NavItem } from "@/app/components/nav-links";
 import { UserMenu } from "@/app/components/user-menu";
 import { MobileNav } from "@/app/components/mobile-nav";
+import { SidebarShell } from "@/app/components/sidebar-shell";
 import { ToastProvider } from "@/app/components/toast";
 import { LangProvider, LangToggle } from "@/app/components/lang";
 import { getLang, getT } from "@/app/lib/i18n-server";
@@ -75,15 +76,15 @@ export default async function DashboardLayout({
         <ToastProvider>
           <div className="flex min-h-screen flex-1">
             {/* Sidebar */}
-            <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto bg-zinc-950 p-4 lg:flex print:hidden">
+            <SidebarShell>
               <Link
                 href="/"
-                className="mb-6 flex items-center gap-2.5 px-2 py-1"
+                className="mb-6 flex items-center gap-2.5 px-2 py-1 group-data-[collapsed=true]/side:px-0.5"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white">
                   <Wrench className="h-5 w-5" />
                 </span>
-                <span className="flex flex-col leading-tight">
+                <span className="flex flex-col leading-tight group-data-[collapsed=true]/side:hidden">
                   <span className="text-sm font-semibold text-white">
                     Hardware POS
                   </span>
@@ -96,10 +97,11 @@ export default async function DashboardLayout({
               <div className="mt-4">
                 <Link
                   href="/pos"
+                  title={t("New Sale")}
                   className="flex h-9 items-center justify-center gap-2 rounded-lg bg-brand-700 text-sm font-medium text-white transition hover:bg-brand-600"
                 >
-                  <Plus className="h-4 w-4" />
-                  {t("New Sale")}
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="group-data-[collapsed=true]/side:hidden">{t("New Sale")}</span>
                 </Link>
               </div>
 
@@ -117,7 +119,7 @@ export default async function DashboardLayout({
                   role={user.role}
                 />
               </div>
-            </aside>
+            </SidebarShell>
 
             {/* Main content */}
             <div className="flex min-w-0 flex-1 flex-col bg-zinc-50">

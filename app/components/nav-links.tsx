@@ -75,13 +75,17 @@ export function NavLinks({ items }: { items: NavItem[] }) {
         return (
           <Fragment key={item.href}>
             {startsGroup && (
-              <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                {item.group}
-              </p>
+              <>
+                <p className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 group-data-[collapsed=true]/side:hidden">
+                  {item.group}
+                </p>
+                <hr className="mx-2 my-2 hidden border-white/10 group-data-[collapsed=true]/side:block" />
+              </>
             )}
             <Link
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              title={item.label}
+              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition group-data-[collapsed=true]/side:justify-center group-data-[collapsed=true]/side:px-0 group-data-[collapsed=true]/side:py-2 ${
                 active
                   ? "bg-brand-500/15 text-white"
                   : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
@@ -91,7 +95,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
                 className={`h-4.5 w-4.5 shrink-0 transition-colors ${active ? "text-brand-400" : ""}`}
                 strokeWidth={2}
               />
-              {item.label}
+              <span className="truncate group-data-[collapsed=true]/side:hidden">{item.label}</span>
             </Link>
           </Fragment>
         );

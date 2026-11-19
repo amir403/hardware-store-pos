@@ -34,6 +34,8 @@ const UR: Record<string, string> = {
   "Open menu": "Menu kholen",
   "Close menu": "Menu band karein",
   "Sign out": "Log out",
+  "Expand menu": "Menu kholen",
+  "Collapse menu": "Menu band karen",
   'Only a manager can sell "{name}" below {price}.':
     '"{name}" ko {price} se kam par sirf manager bech sakta hai.',
   "Discount {d} is over the cashier limit of {pct}% ({cap}). Ask a manager to complete this bill.":

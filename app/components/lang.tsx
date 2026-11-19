@@ -27,10 +27,11 @@ export function LangToggle() {
       type="button"
       disabled={isPending}
       onClick={() => startTransition(() => setLangAction(next))}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100 disabled:opacity-50"
+      title={lang === "ur" ? "English" : "Roman Urdu"}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100 disabled:opacity-50 group-data-[collapsed=true]/side:justify-center group-data-[collapsed=true]/side:px-0"
     >
       <LanguagesIcon className="h-4.5 w-4.5 shrink-0" strokeWidth={2} />
-      {lang === "ur" ? "English" : "Roman Urdu"}
+      <span className="group-data-[collapsed=true]/side:hidden">{lang === "ur" ? "English" : "Roman Urdu"}</span>
     </button>
   );
 }

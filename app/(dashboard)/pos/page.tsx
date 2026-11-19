@@ -73,6 +73,7 @@ export default async function PosPage({
     wholesalePrice: p.wholesalePrice === null ? null : toNum(p.wholesalePrice),
     taxRate: toNum(p.taxRate),
     stockQty: toNum(p.stockQty),
+    reorderLevel: p.reorderLevel === null ? null : toNum(p.reorderLevel),
     unit: p.unit,
     trackStock: p.trackStock,
     categoryName: p.category?.name ?? null,
