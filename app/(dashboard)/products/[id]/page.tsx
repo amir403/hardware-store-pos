@@ -63,6 +63,7 @@ export default async function EditProductPage({
           action={updateProductAction}
           categories={categories}
           isEdit={true}
+          isDesign={product.groupId !== null}
           defaults={{
             id: product.id,
             name: product.name,

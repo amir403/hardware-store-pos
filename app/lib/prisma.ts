@@ -34,7 +34,12 @@ function createPrismaClient() {
   });
 
   const adapter = new PrismaPg(pool);
-  return new PrismaClient({ adapter });
+  return new PrismaClient({
+    adapter,
+    // The 5s default aborted real sales on a slow local DB (many lines = many
+    // round trips). A sale must not fail at the counter for being slow.
+    transactionOptions: { maxWait: 10_000, timeout: 20_000 },
+  });
 }
 
 function getPrismaClient(): PrismaClient {

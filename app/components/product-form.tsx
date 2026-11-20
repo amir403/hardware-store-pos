@@ -39,11 +39,14 @@ export function ProductForm({
   categories,
   defaults,
   isEdit,
+  isDesign = false,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   categories: CategoryOption[];
   defaults: ProductDefaults;
   isEdit: boolean;
+  /** One design of a group: its name is built from the group, so it is read-only here. */
+  isDesign?: boolean;
 }) {
   const [state, formAction] = useActionState(action, {});
   /** Local preview of a newly picked photo; the server re-encodes the file. */
@@ -76,8 +79,12 @@ export function ProductForm({
             maxLength={120}
             defaultValue={defaults.name}
             placeholder="e.g. Claw Hammer 16oz"
-            className={inputClass}
+            readOnly={isDesign}
+            className={`${inputClass} ${isDesign ? "bg-zinc-50 text-zinc-500" : ""}`}
           />
+          {isDesign && (
+            <p className="text-xs text-zinc-400">Rename it under Designs below.</p>
+          )}
           {fieldError("name") && (
             <p className="text-xs text-red-600">{fieldError("name")}</p>
           )}

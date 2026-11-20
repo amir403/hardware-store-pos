@@ -198,7 +198,7 @@ export async function updateProductAction(
 
   const before = await prisma.product.findUnique({
     where: { id },
-    select: { name: true, price: true, costPrice: true, wholesalePrice: true },
+    select: { name: true, price: true, costPrice: true, wholesalePrice: true, groupId: true },
   });
   if (!before) return { error: "That product no longer exists." };
 
@@ -206,7 +206,8 @@ export async function updateProductAction(
     await prisma.product.update({
       where: { id },
       data: {
-        name: data.name,
+        // A design's name is built from its group; it is renamed in the Designs section.
+        name: before.groupId ? before.name : data.name,
         sku: data.sku,
         barcode: data.barcode,
         description: data.description,
