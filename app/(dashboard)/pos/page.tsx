@@ -2,7 +2,6 @@ import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { toNum } from "@/app/lib/format";
 import Link from "next/link";
-import { PageHeader } from "@/app/components/page-header";
 import { getOpenShift } from "@/app/lib/shifts";
 import { getCurrentUser } from "@/app/lib/auth";
 import {
@@ -86,15 +85,22 @@ export default async function PosPage({
   }));
 
   return (
-    <>
-      <PageHeader
-        title={t("New Sale")}
-        description={settings.storeName}
-      />
-      {/* Selling is never blocked — but cash taken with no shift open cannot be
-          reconciled against a drawer count. */}
-      {!openShift && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <PosTerminal
+      key={recall ?? "pos"}
+      title={t("New Sale")}
+      subtitle={settings.storeName}
+      products={posProducts}
+      customers={customers}
+      currency={settings.currency}
+      pricesIncludeTax={settings.pricesIncludeTax}
+      heldSales={heldSales}
+      initialHeldId={recall ?? null}
+      canEditPrices={user.role !== "CASHIER"}
+      notice={
+        // Selling is never blocked — but cash taken with no shift open cannot be
+        // reconciled against a drawer count.
+        !openShift && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span>
             {t("No shift is open. Open one so today's cash can be counted at closing.")}
           </span>
@@ -105,17 +111,8 @@ export default async function PosPage({
             {t("Open shift")}
           </Link>
         </div>
-      )}
-      <PosTerminal
-        key={recall ?? "pos"}
-        products={posProducts}
-        customers={customers}
-        currency={settings.currency}
-        pricesIncludeTax={settings.pricesIncludeTax}
-        heldSales={heldSales}
-        initialHeldId={recall ?? null}
-        canEditPrices={user.role !== "CASHIER"}
-      />
-    </>
+        )
+      }
+    />
   );
 }

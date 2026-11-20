@@ -125,6 +125,9 @@ export function PosTerminal({
   heldSales,
   initialHeldId = null,
   canEditPrices = true,
+  title,
+  subtitle,
+  notice,
 }: {
   products: PosProduct[];
   customers: PosCustomer[];
@@ -135,6 +138,11 @@ export function PosTerminal({
   initialHeldId?: string | null;
   /** Cashiers sell at list price; only managers may change it. */
   canEditPrices?: boolean;
+  /** Page heading, drawn beside the search box so the scanner field sits at the top. */
+  title: string;
+  subtitle?: string;
+  /** Shown under the heading row, e.g. the no-shift warning. */
+  notice?: React.ReactNode;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -633,7 +641,12 @@ export function PosTerminal({
     <div className="grid grid-cols-1 gap-6 pb-24 xl:grid-cols-[1fr_420px] xl:pb-0">
       {/* Left: search + results */}
       <div className="flex min-w-0 flex-col gap-4">
-        <div className="relative">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <div className="shrink-0">
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{title}</h1>
+            {subtitle && <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>}
+          </div>
+        <div className="relative min-w-0 flex-1">
           <BarcodeIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
           <input
             ref={searchRef}
@@ -646,6 +659,9 @@ export function PosTerminal({
             className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
         </div>
+        </div>
+
+        {notice}
 
         {/* Shortcut hints — only useful on a real keyboard */}
         <div className="hidden items-center gap-3 text-[11px] text-zinc-500 md:flex">
@@ -657,93 +673,6 @@ export function PosTerminal({
               {t(s.label)}
             </span>
           ))}
-        </div>
-
-        {categories.length > 0 && (
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-            {["", ...categories].map((c) => (
-              <button
-                key={c || "all"}
-                type="button"
-                onClick={() => setCategory(c)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition hover:brightness-95 ${
-                  c
-                    ? category === c
-                      ? toneFor(c)!.chipOn
-                      : toneFor(c)!.chip
-                    : category === c
-                      ? "border-brand-700 bg-brand-700 text-white"
-                      : "border-zinc-300 bg-white text-zinc-600"
-                }`}
-              >
-                {c || t("All")}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {gridEntries.map((entry) => {
-            if (entry.kind === "product") return renderProduct(entry.product);
-            const open = openGroupId === entry.groupId;
-            const prices = entry.designs.map((d) => priceFor(d, isWholesale));
-            const low = Math.min(...prices);
-            const high = Math.max(...prices);
-            const inCartCount = entry.designs.filter((d) =>
-              cart.some((l) => l.productId === d.id)
-            ).length;
-            return (
-              <Fragment key={entry.groupId}>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  onClick={() => setOpenGroupId(open ? null : entry.groupId)}
-                  className={`flex items-center justify-between gap-3 rounded-xl border bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm ${
-                    open ? "border-brand-500 ring-2 ring-brand-500/15" : "border-zinc-200"
-                  }`}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <ProductThumb
-                      src={entry.designs.find((d) => d.imageUrl)?.imageUrl}
-                      name={entry.name}
-                      size={44}
-                      tone={toneFor(entry.designs[0].categoryName)?.tile}
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-900">{entry.name}</p>
-                      <p className="flex items-center gap-1 truncate text-xs text-brand-700">
-                        <LayersIcon className="h-3 w-3" />
-                        {entry.designs.length} {t("designs")}
-                        {inCartCount > 0 && (
-                          <span className="text-emerald-600"> · {inCartCount} {t("in cart")}</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5 text-right">
-                    <p className="text-sm font-semibold text-zinc-900">
-                      {formatMoney(low, currency)}
-                      {high > low && <span className="font-normal text-zinc-400"> +</span>}
-                    </p>
-                    <ChevronDownIcon
-                      className={`h-4 w-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
-                    />
-                  </div>
-                </button>
-                {open && (
-                  <div className="col-span-full grid origin-top animate-pop-in grid-cols-1 gap-2 rounded-xl border border-brand-200 bg-brand-50/60 p-2 sm:grid-cols-2">
-                    {entry.designs.map((d) => renderProduct(d, variantLabel(d) || d.name))}
-                  </div>
-                )}
-              </Fragment>
-            );
-          })}
-          {results.length === 0 && (
-            <div className="col-span-full rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-400">
-              <SearchIcon className="mx-auto mb-2 h-5 w-5" />
-              {t("No products match")} “{query}”.
-            </div>
-          )}
         </div>
 
         {/* Cart */}
@@ -767,7 +696,7 @@ export function PosTerminal({
           </div>
 
           {cart.length === 0 ? (
-            <div className="px-4 py-12 text-center text-sm text-zinc-400">
+            <div className="px-4 py-4 text-center text-sm text-zinc-400">
               {t("Scan or click a product to start a sale.")}
             </div>
           ) : (
@@ -905,6 +834,93 @@ export function PosTerminal({
                 })}
               </tbody>
             </table>
+          )}
+        </div>
+
+        {categories.length > 0 && (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            {["", ...categories].map((c) => (
+              <button
+                key={c || "all"}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition hover:brightness-95 ${
+                  c
+                    ? category === c
+                      ? toneFor(c)!.chipOn
+                      : toneFor(c)!.chip
+                    : category === c
+                      ? "border-brand-700 bg-brand-700 text-white"
+                      : "border-zinc-300 bg-white text-zinc-600"
+                }`}
+              >
+                {c || t("All")}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {gridEntries.map((entry) => {
+            if (entry.kind === "product") return renderProduct(entry.product);
+            const open = openGroupId === entry.groupId;
+            const prices = entry.designs.map((d) => priceFor(d, isWholesale));
+            const low = Math.min(...prices);
+            const high = Math.max(...prices);
+            const inCartCount = entry.designs.filter((d) =>
+              cart.some((l) => l.productId === d.id)
+            ).length;
+            return (
+              <Fragment key={entry.groupId}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setOpenGroupId(open ? null : entry.groupId)}
+                  className={`flex items-center justify-between gap-3 rounded-xl border bg-white p-2.5 text-left transition hover:border-brand-400 hover:shadow-sm ${
+                    open ? "border-brand-500 ring-2 ring-brand-500/15" : "border-zinc-200"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ProductThumb
+                      src={entry.designs.find((d) => d.imageUrl)?.imageUrl}
+                      name={entry.name}
+                      size={44}
+                      tone={toneFor(entry.designs[0].categoryName)?.tile}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-900">{entry.name}</p>
+                      <p className="flex items-center gap-1 truncate text-xs text-brand-700">
+                        <LayersIcon className="h-3 w-3" />
+                        {entry.designs.length} {t("designs")}
+                        {inCartCount > 0 && (
+                          <span className="text-emerald-600"> · {inCartCount} {t("in cart")}</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5 text-right">
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {formatMoney(low, currency)}
+                      {high > low && <span className="font-normal text-zinc-400"> +</span>}
+                    </p>
+                    <ChevronDownIcon
+                      className={`h-4 w-4 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </button>
+                {open && (
+                  <div className="col-span-full grid origin-top animate-pop-in grid-cols-1 gap-2 rounded-xl border border-brand-200 bg-brand-50/60 p-2 sm:grid-cols-2">
+                    {entry.designs.map((d) => renderProduct(d, variantLabel(d) || d.name))}
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
+          {results.length === 0 && (
+            <div className="col-span-full rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-400">
+              <SearchIcon className="mx-auto mb-2 h-5 w-5" />
+              {t("No products match")} “{query}”.
+            </div>
           )}
         </div>
 
