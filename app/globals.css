@@ -111,6 +111,20 @@
 }
 
 @layer base {
+  /* Tailwind 4 dropped the pointer cursor on buttons; bring it back app-wide. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   html {
     color-scheme: light;
     accent-color: var(--color-brand-700);
