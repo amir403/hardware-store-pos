@@ -231,15 +231,23 @@ export async function setGroupPriceAction(_prev: GroupResult, formData: FormData
   return { ok: true };
 }
 
-/** Take one design out of its group; an emptied group is removed. */
+/**
+ * Take one design out of its group under a name of its own (it no longer
+ * belongs to "Group – Design"); an emptied group is removed.
+ */
 export async function leaveGroupAction(formData: FormData): Promise<void> {
   await requireManager();
   const productId = String(formData.get("productId") ?? "");
+  const name = z.string().trim().min(1).max(120).safeParse(formData.get("name"));
+  if (!name.success) throw new Error("Enter a name for the product.");
   const product = await prisma.product.findUnique({ where: { id: productId }, select: { groupId: true } });
   if (!product?.groupId) return;
 
   await prisma.$transaction(async (tx) => {
-    await tx.product.update({ where: { id: productId }, data: { groupId: null, variantName: null, size: null, color: null } });
+    await tx.product.update({
+      where: { id: productId },
+      data: { name: name.data, groupId: null, variantName: null, size: null, color: null },
+    });
     if ((await tx.product.count({ where: { groupId: product.groupId } })) === 0) {
       await tx.productGroup.delete({ where: { id: product.groupId! } });
     }

@@ -231,9 +231,21 @@ export function ProductDesigns({
                 action={leaveGroupAction}
                 message="Take this design out of the group? It stays a normal product with its stock and sales."
                 successMessage="Removed from the group"
+                className="flex flex-col gap-2.5 border-t border-zinc-100 pt-4"
               >
+                <h3 className="text-sm font-semibold text-zinc-900">Remove from group</h3>
                 <input type="hidden" name="productId" value={product.id} />
-                <button type="submit" className="text-xs font-medium text-zinc-500 underline-offset-2 hover:text-red-600 hover:underline">
+                <label className={labelClass}>
+                  Name as a separate product *
+                  <input
+                    name="name"
+                    required
+                    maxLength={120}
+                    defaultValue={`${group.name} ${variantLabel(group.designs.find((d) => d.id === product.id) ?? {})}`.trim()}
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+                <button type="submit" className="w-fit text-xs font-medium text-zinc-500 underline-offset-2 hover:text-red-600 hover:underline">
                   Remove this design from the group
                 </button>
               </ConfirmForm>

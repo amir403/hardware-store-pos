@@ -33,8 +33,9 @@ export async function createCategoryAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const existing = await prisma.category.findUnique({
-    where: { name: parsed.data.name },
+  // Case-insensitive: "Tools" and "tools" are the same category.
+  const existing = await prisma.category.findFirst({
+    where: { name: { equals: parsed.data.name, mode: "insensitive" } },
   });
   if (existing) {
     return { fieldErrors: { name: ["A category with this name already exists."] } };
@@ -62,7 +63,7 @@ export async function renameCategoryAction(formData: FormData) {
   if (!id || !name) return;
 
   const existing = await prisma.category.findFirst({
-    where: { name, NOT: { id } },
+    where: { name: { equals: name, mode: "insensitive" }, NOT: { id } },
   });
   if (existing) {
     throw new Error(`A category named "${name}" already exists.`);
