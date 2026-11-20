@@ -51,6 +51,7 @@ export default async function DashboardLayout({
     { href: "/expenses", label: "Expenses", icon: "expenses", group: "Accounts" },
     ...(isManager
       ? ([
+          { href: "/reports/daily", label: "Daily closing", icon: "closing", group: "Accounts" },
           { href: "/reports", label: "Reports", icon: "reports", group: "Accounts" },
         ] satisfies NavItem[])
       : []),

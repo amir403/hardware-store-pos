@@ -3,7 +3,7 @@ import { Trash2Icon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
-import { formatDate, formatMoney, round2, toNum } from "@/app/lib/format";
+import { formatDate, formatMoney, round2, toNum, isoDay } from "@/app/lib/format";
 import {
   EXPENSE_LABELS,
   type ExpenseCategoryValue,
@@ -23,9 +23,6 @@ const METHOD_LABELS: Record<string, string> = {
   OTHER: "Other",
 };
 
-function isoDay(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 /** "YYYY-MM" for the month filter; anything else falls back to this month. */
 function parseMonth(value: string | undefined, now: Date): Date {

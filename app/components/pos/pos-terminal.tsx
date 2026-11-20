@@ -22,7 +22,7 @@ import {
 import { createQuotationAction } from "@/app/actions/quotations";
 import { useToast } from "@/app/components/toast";
 import { CustomerPicker } from "@/app/components/pos/customer-picker";
-import { formatDateTime, formatMoney, round2 } from "@/app/lib/format";
+import { formatDateTime, formatMoney, formatQty, round2 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { useT } from "@/app/components/lang";
 import { ProductThumb } from "@/app/components/product-thumb";
@@ -349,6 +349,13 @@ export function PosTerminal({
 
   function addToCart(product: PosProduct) {
     setError(null);
+    const inCart = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
+    if (product.trackStock && inCart + 1 > product.stockQty) {
+      setError(
+        `${product.name}: ${t("only {n} available", { n: `${formatQty(product.stockQty)} ${product.unit}` })}`
+      );
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((l) => l.productId === product.id);
       if (existing) {
@@ -402,13 +409,22 @@ export function PosTerminal({
     productId: string,
     patch: Partial<Pick<CartLine, "quantity" | "unitPrice" | "discount">>
   ) {
+    // Never more than is on the shelf; the server checks again at checkout.
+    const line = cart.find((l) => l.productId === productId);
+    const cap = line?.trackStock ? line.stockQty : Infinity;
+    if (line && patch.quantity !== undefined && patch.quantity > cap) {
+      setError(`${line.name}: ${t("only {n} available", { n: `${formatQty(cap)} ${line.unit}` })}`);
+    }
     setCart((prev) =>
       prev.map((l) =>
         l.productId === productId
           ? {
               ...l,
               ...patch,
-              quantity: Math.max(0.001, patch.quantity ?? l.quantity),
+              quantity: Math.max(
+                0.001,
+                Math.min(patch.quantity ?? l.quantity, l.trackStock ? l.stockQty : Infinity)
+              ),
               unitPrice: Math.max(0, patch.unitPrice ?? l.unitPrice),
               discount: Math.max(0, patch.discount ?? l.discount),
             }
@@ -1162,7 +1178,7 @@ export function PosTerminal({
 
       {/* Below xl the checkout panel sits under the cart, so keep the total
           and the complete button pinned to the bottom of the screen. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur lg:left-60 xl:hidden print:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur lg:left-60 lg:[body:has([data-collapsed=true])_&]:left-16 xl:hidden print:hidden">
         {error && (
           <p className="mb-2 truncate text-xs font-medium text-red-600">{error}</p>
         )}

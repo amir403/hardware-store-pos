@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 
 export type LoginState = {
   error?: string;
+  /** Echoed back so a failed attempt does not wipe what was typed. */
+  email?: string;
 };
 
 export async function loginAction(
@@ -16,17 +18,18 @@ export async function loginAction(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "Email and password are required." };
+    return { error: "Email and password are required.", email };
   }
 
   try {
-    await signIn("credentials", { email, password });
+    // redirect: false so the redirect("/") below decides where we land.
+    await signIn("credentials", { email, password, redirect: false });
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.type === "CredentialsSignin") {
-        return { error: "Invalid email or password." };
+        return { error: "Invalid email or password.", email };
       }
-      return { error: "Something went wrong. Please try again." };
+      return { error: "Something went wrong. Please try again.", email };
     }
     throw error;
   }

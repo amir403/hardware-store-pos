@@ -34,6 +34,7 @@ const UR: Record<string, string> = {
   "Open menu": "Menu kholen",
   "Close menu": "Menu band karein",
   "Sign out": "Log out",
+  "Daily closing": "Roz ka hisaab",
   "Expand menu": "Menu kholen",
   "Collapse menu": "Menu band karen",
   'Only a manager can sell "{name}" below {price}.':

@@ -4,7 +4,7 @@ import { ArrowLeftIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
-import { formatDate, formatDateTime, formatMoney, round2, toNum } from "@/app/lib/format";
+import { formatDate, formatDateTime, formatMoney, round2, toNum, PAYMENT_LABELS } from "@/app/lib/format";
 import { getSupplierBalance, purchaseSettlement } from "@/app/lib/payables";
 import { deleteSupplierPaymentAction } from "@/app/actions/supplier-payments";
 import { PageHeader } from "@/app/components/page-header";
@@ -16,13 +16,6 @@ import { ConfirmForm } from "@/app/components/confirm-form";
 
 export const metadata = { title: "Supplier account" };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  BANK_TRANSFER: "Bank transfer",
-  MOBILE: "Mobile",
-  OTHER: "Other",
-};
 
 /** One line on the statement: a purchase coming in or money going out. */
 type LedgerRow = {

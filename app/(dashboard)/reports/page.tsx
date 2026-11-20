@@ -14,7 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
-import { formatDate, formatMoney, formatQty, round2, toNum } from "@/app/lib/format";
+import { formatDate, formatMoney, formatQty, round2, toNum, PAYMENT_LABELS, isoDay } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 import { getExpenseTotal } from "@/app/lib/expenses";
 import { unitCost } from "@/app/lib/profit";
@@ -24,13 +24,6 @@ export const metadata = { title: "Reports" };
 const DAY_MS = 86_400_000;
 const MAX_SERIES_DAYS = 92;
 
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  BANK_TRANSFER: "Bank transfer",
-  MOBILE: "Mobile",
-  OTHER: "Other",
-};
 
 /** "YYYY-MM-DD" in local time, so a range never slips across midnight. */
 function dayStart(value: string): Date {
@@ -41,11 +34,6 @@ function dayEnd(value: string): Date {
   return new Date(`${value}T23:59:59`);
 }
 
-function isoDay(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 function clampDate(value: string | undefined, fallback: string): string {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback;

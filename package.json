@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test \"app/**/*.test.ts\"",
+    "test:e2e": "playwright test",
     "db:start": "prisma dev start default --detach",
     "db:stop": "prisma dev stop",
     "db:ls": "prisma dev ls",
@@ -33,6 +34,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

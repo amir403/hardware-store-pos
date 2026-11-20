@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { invoiceSettlement } from "./ledger";
 import { purchaseSettlement } from "./payables";
 import { cashierPricingProblem, nextDailyNumber, returnCredit } from "./sale-pricing";
-import { whatsappLink } from "./whatsapp";
+import { dailyClosingText, whatsappLink } from "./whatsapp";
 import { translate } from "./i18n";
 import { designName, groupForGrid } from "./variants";
 
@@ -150,4 +150,16 @@ test("daily numbers continue from the highest issued, not a row count", () => {
 test("whatsapp: local Pakistani numbers become international", () => {
   assert.equal(whatsappLink("0300-1112233", "hi"), "https://wa.me/923001112233?text=hi");
   assert.equal(whatsappLink(null, "a b"), "https://wa.me/?text=a%20b");
+});
+
+test("whatsapp: daily closing reads as one short message", () => {
+  assert.equal(
+    dailyClosingText({
+      storeName: "Raza Hardware",
+      date: "20 Nov 2026",
+      bills: 3,
+      lines: [["Sale", "PKR 1,200.00"], ["Munafa", "PKR 300.00"]],
+    }),
+    "*Raza Hardware* — 20 Nov 2026\nBills: 3\nSale: PKR 1,200.00\nMunafa: PKR 300.00"
+  );
 });

@@ -10,6 +10,7 @@ export type PurchaseProduct = {
   id: string;
   name: string;
   sku: string | null;
+  barcode: string | null;
   costPrice: number;
   unit: string;
   trackStock: boolean;
@@ -77,7 +78,8 @@ export function PurchaseForm({
       .filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          (p.sku && p.sku.toLowerCase().includes(q))
+          (p.sku && p.sku.toLowerCase().includes(q)) ||
+          (p.barcode && p.barcode.toLowerCase().includes(q))
       )
       .slice(0, 6);
   }, [products, query]);
@@ -99,7 +101,12 @@ export function PurchaseForm({
   function addLine(product: PurchaseProduct) {
     setError(null);
     setLines((prev) => {
-      if (prev.some((l) => l.productId === product.id)) return prev;
+      // Scanning the same item again counts one more, like at the POS.
+      if (prev.some((l) => l.productId === product.id)) {
+        return prev.map((l) =>
+          l.productId === product.id ? { ...l, quantity: round3(l.quantity + 1) } : l
+        );
+      }
       return [
         ...prev,
         {
@@ -116,9 +123,19 @@ export function PurchaseForm({
   function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (results.length > 0) {
-      addLine(results[0]);
+    // A scanner types the whole barcode then Enter: an exact code beats a name match.
+    const code = query.trim().toLowerCase();
+    // An empty box lists the first products; Enter there must not add one.
+    if (!code) return;
+    const exact = products.find(
+      (p) => p.barcode?.toLowerCase() === code || p.sku?.toLowerCase() === code
+    );
+    const pick = exact ?? results[0];
+    if (pick) {
+      addLine(pick);
       setQuery("");
+    } else {
+      setError(`No product with code "${query.trim()}".`);
     }
   }
 
@@ -235,9 +252,11 @@ export function PurchaseForm({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleSearchKeyDown}
-          placeholder="Search product name or SKU, press Enter to add…"
+          placeholder="Scan barcode or search name / SKU, then Enter…"
           className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />
+        {/* Shown here too: on a long purchase the form-level error is off-screen. */}
+        {error && <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>}
         {query && results.length > 0 && (
           <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {results.map((p) => (

@@ -21,6 +21,7 @@ import {
   VaultIcon,
   FileTextIcon,
   ShieldCheckIcon,
+  CalendarCheckIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ const icons = {
   customers: Users,
   dues: Wallet,
   reports: BarChart3,
+  closing: CalendarCheckIcon,
   labels: Barcode,
   expenses: ReceiptIcon,
   shifts: VaultIcon,
@@ -59,16 +61,20 @@ export type NavItem = {
 
 export function NavLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  // The most specific match wins, so /reports/daily lights "Daily closing", not "Reports".
+  const activeHref = items
+    .map((item) => item.href)
+    .filter((href) =>
+      href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
+    )
+    .sort((a, b) => b.length - a.length)[0];
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5">
       {items.map((item, index) => {
         const startsGroup =
           item.group !== undefined && item.group !== items[index - 1]?.group;
-        const active =
-          item.href === "/"
-            ? pathname === "/"
-            : pathname.startsWith(item.href);
+        const active = item.href === activeHref;
 
         const Icon = icons[item.icon];
 

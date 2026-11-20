@@ -186,10 +186,17 @@ export async function createSaleAction(
         // Decrement stock + audit trail
         for (const line of lines) {
           if (!line.trackStock) continue;
-          await tx.product.update({
-            where: { id: line.productId },
+          // Conditional, so two counters selling the last pieces at once
+          // cannot both pass the earlier check and push stock below zero.
+          const taken = await tx.product.updateMany({
+            where: { id: line.productId, stockQty: { gte: line.quantity } },
             data: { stockQty: { decrement: line.quantity } },
           });
+          if (taken.count === 0) {
+            throw new SaleValidationError(
+              `Insufficient stock for "${line.productName}" — it was just sold elsewhere.`
+            );
+          }
           await tx.stockMovement.create({
             data: {
               productId: line.productId,

@@ -15,6 +15,7 @@ npm run dev            # Next dev server on :3000
 npm run build
 npm run lint           # eslint (flat config, next core-web-vitals + typescript)
 npm test               # node:test unit tests for pure money/pricing helpers (app/**/*.test.ts, run via tsx)
+npm run test:e2e       # Playwright (e2e/): login + a full POS sale that is then voided; uses installed Chrome, starts/reuses the dev server
 npm run db:start       # start local Postgres via `prisma dev` (detached); db:stop / db:ls
 npm run db:migrate     # prisma migrate dev
 npm run db:seed        # seed settings, users (admin/manager/cashier @store.com), sample data

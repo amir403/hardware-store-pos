@@ -29,6 +29,22 @@ export function formatQty(qty: number | string | null | undefined): string {
   return formatted;
 }
 
+/** Display names for PaymentMethod values. */
+export const PAYMENT_LABELS: Record<string, string> = {
+  CASH: "Cash",
+  CARD: "Card",
+  BANK_TRANSFER: "Bank transfer",
+  MOBILE: "Mobile",
+  OTHER: "Other",
+};
+
+/** "YYYY-MM-DD" in local time, for date inputs and URLs. */
+export function isoDay(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("en-GB", {

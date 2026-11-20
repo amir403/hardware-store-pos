@@ -11,6 +11,20 @@ export function whatsappLink(phone: string | null | undefined, text: string): st
   return `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
 }
 
+/** The day's closing in a few lines, for the owner's WhatsApp. Amounts come pre-formatted. */
+export function dailyClosingText(opts: {
+  storeName: string;
+  date: string;
+  bills: number;
+  lines: [label: string, amount: string][];
+}): string {
+  return [
+    `*${opts.storeName}* — ${opts.date}`,
+    `Bills: ${opts.bills}`,
+    ...opts.lines.map(([label, amount]) => `${label}: ${amount}`),
+  ].join("\n");
+}
+
 /** Polite Roman Urdu payment reminder, the way it would be typed by hand. */
 export function duesReminderText(opts: {
   storeName: string;

@@ -33,6 +33,7 @@ export function LoginForm() {
           autoComplete="email"
           required
           autoFocus
+          defaultValue={state?.email}
           placeholder="you@store.com"
           className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
         />

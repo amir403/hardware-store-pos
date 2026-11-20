@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -18,7 +18,10 @@ export const metadata: Metadata = {
     template: "%s — Hardware POS",
   },
   description: "Point of sale for hardware stores",
+  appleWebApp: { capable: true, title: "Hardware POS", statusBarStyle: "default" },
 };
+
+export const viewport: Viewport = { themeColor: "#e4572e" };
 
 export default function RootLayout({
   children,

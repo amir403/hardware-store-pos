@@ -2,18 +2,11 @@ import Link from "next/link";
 import { ArrowRightIcon, DownloadIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
-import { formatMoney, formatDateTime, toNum } from "@/app/lib/format";
+import { formatMoney, formatDateTime, toNum, PAYMENT_LABELS } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
 
 export const metadata = { title: "Sales" };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  BANK_TRANSFER: "Bank transfer",
-  MOBILE: "Mobile",
-  OTHER: "Other",
-};
 
 const STATUS_STYLES: Record<string, string> = {
   COMPLETED: "bg-emerald-50 text-emerald-700",

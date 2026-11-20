@@ -48,6 +48,7 @@ export default async function NewPurchasePage({
     id: p.id,
     name: p.name,
     sku: p.sku,
+    barcode: p.barcode,
     costPrice: toNum(p.costPrice),
     unit: p.unit,
     trackStock: p.trackStock,

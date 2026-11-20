@@ -17,6 +17,7 @@ import {
   formatQty,
   round2,
   toNum,
+  PAYMENT_LABELS,
 } from "@/app/lib/format";
 import { invoiceSettlement } from "@/app/lib/ledger";
 import { PrintButton } from "@/app/components/print-button";
@@ -29,13 +30,6 @@ import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Sale detail" };
 
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: "Cash",
-  CARD: "Card",
-  BANK_TRANSFER: "Bank transfer",
-  MOBILE: "Mobile",
-  OTHER: "Other",
-};
 
 const STATUS_LABELS: Record<string, string> = {
   COMPLETED: "Completed",
