@@ -34,6 +34,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.hashedPassword);
         if (!valid) return null;
 
+        // Shown on the Users page; a failed write must not block the sign-in.
+        await prisma.user
+          .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+          .catch(() => {});
+
         return {
           id: user.id,
           name: user.name,

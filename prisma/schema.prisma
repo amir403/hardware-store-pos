@@ -81,6 +81,7 @@ model User {
   hashedPassword String?
   role           Role      @default(CASHIER)
   isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
