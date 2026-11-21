@@ -45,3 +45,6 @@ next-env.d.ts
 # Playwright
 /test-results/
 /playwright-report/
+
+# Production server log (scripts/start-pos.ps1)
+/logs/
