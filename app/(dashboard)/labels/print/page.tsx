@@ -6,30 +6,38 @@ import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
 import { formatMoney, toNum } from "@/app/lib/format";
 import { canEncode } from "@/app/lib/barcode";
-import { Barcode } from "@/app/components/barcode";
+import { LabelFace, type LabelContent } from "@/app/components/label-face";
 import { PrintButton } from "@/app/components/print-button";
 import { LABEL_SIZES, isLabelSize } from "@/app/lib/print-formats";
+import { MAX_LABELS, encodeLabelItem, parseLabelItems } from "@/app/lib/labels";
 
 export const metadata = { title: "Label sheet" };
-
-/** A sheet URL is still a URL — refuse to build an unbounded page. */
-const MAX_LABELS = 480;
 
 export default async function LabelSheetPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string | string[]; per?: string; size?: string }>;
+  searchParams: Promise<{ l?: string | string[]; ids?: string | string[]; per?: string; size?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!hasRole(user, "ADMIN", "MANAGER")) redirect("/");
 
   const [settings, params] = await Promise.all([getSettings(), searchParams]);
 
-  const ids = [...new Set((params.ids ? [params.ids].flat() : []).filter(Boolean))];
+  // `l=id:count` per product; older links sent `ids` with one `per` for all.
   const per = Math.min(24, Math.max(1, Number(params.per ?? 2) || 1));
+  const items = params.l
+    ? parseLabelItems(params.l)
+    : [...new Set((params.ids ? [params.ids].flat() : []).filter(Boolean))].map((id) => ({ id, count: per }));
+  const counts = new Map(items.map((item) => [item.id, item.count]));
+  const ids = [...counts.keys()];
   const size =
     params.size && isLabelSize(params.size) ? params.size : settings.labelSize;
   const roll = size === "A4" ? null : LABEL_SIZES[size];
+  // Back to the picker with the same ticks, counts and size.
+  const back = `/labels?${new URLSearchParams([
+    ...items.map((item): [string, string] => ["l", encodeLabelItem(item.id, item.count)]),
+    ["size", size],
+  ])}`;
 
   const products = ids.length
     ? await prisma.product.findMany({
@@ -38,26 +46,17 @@ export default async function LabelSheetPage({
       })
     : [];
 
-  type Label = {
-    key: string;
-    name: string;
-    code: string | null;
-    price: string;
-    unit: string;
-  };
-
-  const labels: Label[] = [];
+  const labels: (LabelContent & { key: string })[] = [];
   for (const product of products) {
     // The till matches on barcode first, then SKU — print whichever it has.
     const code = product.barcode ?? product.sku ?? null;
-    const label: Label = {
-      key: product.id,
+    const label: LabelContent = {
       name: product.name,
       code: code && canEncode(code) ? code : null,
       price: formatMoney(toNum(product.price), settings.currency),
       unit: product.unit,
     };
-    for (let i = 0; i < per && labels.length < MAX_LABELS; i++) {
+    for (let i = 0; i < (counts.get(product.id) ?? 1) && labels.length < MAX_LABELS; i++) {
       labels.push({ ...label, key: `${product.id}-${i}` });
     }
   }
@@ -93,7 +92,7 @@ export default async function LabelSheetPage({
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link
-          href="/labels"
+          href={back}
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon className="h-4 w-4" /> Back to picker
@@ -119,81 +118,14 @@ export default async function LabelSheetPage({
           {roll ? (
             <div className="label-roll flex flex-wrap gap-2 rounded-xl border border-zinc-200 bg-zinc-100 p-4">
               {labels.map((label) => (
-                <div
-                  key={label.key}
-                  className="roll-label flex flex-col items-center justify-between overflow-hidden border border-dashed border-zinc-300 bg-white text-center text-black"
-                  style={{
-                    width: `${roll.widthMm}mm`,
-                    height: `${roll.heightMm}mm`,
-                    padding: "1.2mm 1.5mm",
-                  }}
-                >
-                  <p
-                    className="w-full font-bold leading-tight"
-                    style={{
-                      fontSize: roll.heightMm >= 30 ? "8pt" : "7pt",
-                      display: "-webkit-box",
-                      WebkitBoxOrient: "vertical",
-                      WebkitLineClamp: roll.heightMm >= 30 ? 2 : 1,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {label.name}
-                  </p>
-                  {label.code ? (
-                    <div className="flex flex-col items-center">
-                      <Barcode
-                        value={label.code}
-                        // Leave room for the name and price lines.
-                        height={Math.min(18, Math.max(6, roll.heightMm - 15))}
-                        fitWidthMm={roll.widthMm - 3}
-                      />
-                      <p className="font-mono leading-none" style={{ fontSize: "6pt" }}>
-                        {label.code}
-                      </p>
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: "6pt" }}>no code set</p>
-                  )}
-                  <p className="font-bold leading-none" style={{ fontSize: roll.widthMm >= 50 ? "10pt" : "9pt" }}>
-                    {label.price}
-                    {label.unit !== "pcs" ? (
-                      <span style={{ fontSize: "6.5pt", fontWeight: 400 }}>/{label.unit}</span>
-                    ) : null}
-                  </p>
-                </div>
+                <LabelFace key={label.key} label={label} size={size} />
               ))}
             </div>
           ) : (
             <div className="label-sheet rounded-xl border border-zinc-200 bg-white p-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-3 print:gap-1">
                 {labels.map((label) => (
-                  <div
-                    key={label.key}
-                    className="label-cell flex break-inside-avoid flex-col items-center gap-1 rounded-md border border-dashed border-zinc-200 p-2 text-center"
-                  >
-                    <p className="line-clamp-2 text-[11px] font-semibold leading-tight text-zinc-900">
-                      {label.name}
-                    </p>
-                    {label.code ? (
-                      <>
-                        <Barcode value={label.code} height={8} />
-                        <p className="font-mono text-[9px] tracking-tight text-zinc-900">
-                          {label.code}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-[9px] text-zinc-400">no code set</p>
-                    )}
-                    <p className="mt-auto text-[12px] font-bold text-zinc-900">
-                      {label.price}
-                      {label.unit !== "pcs" ? (
-                        <span className="text-[9px] font-normal text-zinc-600">
-                          /{label.unit}
-                        </span>
-                      ) : null}
-                    </p>
-                  </div>
+                  <LabelFace key={label.key} label={label} size={size} />
                 ))}
               </div>
             </div>

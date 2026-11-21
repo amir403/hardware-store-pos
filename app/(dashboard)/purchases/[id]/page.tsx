@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, BarcodeIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
@@ -91,6 +91,12 @@ export default async function PurchaseDetailPage({
         </Link>
         <div className="flex items-center gap-2">
           <PrintButton />
+          <Link
+            href={`/labels?purchase=${purchase.id}`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+          >
+            <BarcodeIcon className="h-4 w-4" /> Print labels
+          </Link>
           {canReturn && (
             <Link
               href={`/purchases/${purchase.id}/return`}
