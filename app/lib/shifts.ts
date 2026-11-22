@@ -73,3 +73,12 @@ export async function getCashBreakdown(
     ),
   };
 }
+
+/** A shift left open longer than this is flagged: one day's cash can no longer be counted on its own. */
+export const STALE_SHIFT_HOURS = 24;
+
+/** Whole hours a shift has been open, or null when it is not stale yet. */
+export function staleShiftHours(openedAt: Date, now: Date = new Date()): number | null {
+  const hours = Math.floor((now.getTime() - openedAt.getTime()) / 3_600_000);
+  return hours >= STALE_SHIFT_HOURS ? hours : null;
+}

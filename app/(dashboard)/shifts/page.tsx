@@ -4,6 +4,7 @@ import { formatDateTime, formatMoney, round2, toNum } from "@/app/lib/format";
 import { getCashBreakdown, getOpenShift } from "@/app/lib/shifts";
 import { PageHeader } from "@/app/components/page-header";
 import { CloseShiftForm, OpenShiftForm } from "@/app/components/shifts/shift-forms";
+import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
 
 export const metadata = { title: "Cash register" };
 
@@ -45,6 +46,8 @@ export default async function ShiftsPage() {
         }
       />
 
+      <StaleShiftNotice shift={openShift} showLink={false} />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
           {cash && (
@@ -69,9 +72,17 @@ export default async function ShiftsPage() {
                 ))}
                 <div className="flex justify-between bg-zinc-50 px-5 py-3 text-base font-semibold text-zinc-900">
                   <dt>Expected cash</dt>
-                  <dd className="tabular-nums">{formatMoney(cash.expected, currency)}</dd>
+                  <dd className={`tabular-nums ${cash.expected < 0 ? "text-red-700" : ""}`}>
+                    {formatMoney(cash.expected, currency)}
+                  </dd>
                 </div>
               </dl>
+              {cash.expected < 0 && (
+                <p className="border-t border-zinc-100 px-5 py-3 text-xs text-red-700">
+                  A drawer cannot hold less than nothing. Usually a cash expense was paid from outside the drawer (record
+                  it as paid by bank or owner instead), or a payment was entered as cash by mistake.
+                </p>
+              )}
             </div>
           )}
 

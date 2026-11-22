@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useToast } from "@/app/components/toast";
 
 /**
@@ -13,6 +14,7 @@ export function ConfirmForm({
   message,
   successMessage,
   className,
+  doneHref,
   children,
 }: {
   action: (formData: FormData) => void | Promise<void>;
@@ -21,14 +23,18 @@ export function ConfirmForm({
   /** Toast shown once the action has finished. */
   successMessage?: string;
   className?: string;
+  /** Where to go once the action succeeds (closes the drawer the form sits in). */
+  doneHref?: string;
   children: React.ReactNode;
 }) {
   const toast = useToast();
+  const router = useRouter();
 
   async function run(formData: FormData) {
     try {
       await action(formData);
       if (successMessage) toast(successMessage);
+      if (doneHref) router.replace(doneHref, { scroll: false });
     } catch (error) {
       // Thrown action errors (e.g. "Only an admin can…") are the useful text.
       toast(

@@ -9,7 +9,7 @@ Database: PostgreSQL 18 (Windows service, computer on hote hi khud chalti hai), 
 
 | Task | Kab | Kya karta hai |
 |---|---|---|
-| Hardware POS server | Windows login par | `scripts\start-pos.ps1`: production app port 3000 par (`npm start`). Crash ho to 3 dafa dobara chalata hai. Log: `logs\server.log` |
+| Hardware POS server | Windows login par, aur har 5 minute (agar band ho) | `scripts\start-pos.ps1`: production app port 3000 par (`npm start`). Sleep ya log-off se band ho jaye to 5 minute ke andar khud chal jata hai. Log: `logs\server.log` |
 | Hardware POS backup | Roz raat 10 baje (computer band tha to agli dafa on hote hi) | `scripts\backup-db.ps1`: `E:\pos-backups` mein backup, aakhri 30 rakhta hai. Log: `E:\pos-backups\backup.log` |
 
 Tasks dobara banane ya backup ka waqt badalne ke liye:
@@ -23,13 +23,15 @@ powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1 -BackupTime 2
 Production app purana build chalati hai. Har update ke baad:
 
 ```powershell
-Stop-ScheduledTask -TaskName "Hardware POS server"
+Disable-ScheduledTask -TaskName "Hardware POS server"; Stop-ScheduledTask -TaskName "Hardware POS server"
 npm.cmd run build
-Start-ScheduledTask -TaskName "Hardware POS server"
+Enable-ScheduledTask -TaskName "Hardware POS server"; Start-ScheduledTask -TaskName "Hardware POS server"
 ```
 
+Task har 5 minute mein check karta hai ke server chal raha hai ya nahi, aur band ho to chala deta hai. Is liye sirf
+`Stop` kaafi nahi: pehle `Disable` karein, warna build ke beech server dobara chal jayega.
 Migration aayi ho to build se pehle `npx.cmd prisma migrate deploy` bhi chalayen.
-Development (`npm run dev`) karni ho to pehle server task band karein, dono port 3000 mangte hain.
+Development (`npm run dev`) karni ho to bhi pehle task `Disable` karein (dono port 3000 mangte hain) aur baad mein `Enable`.
 
 ## Backup ki doosri copy
 

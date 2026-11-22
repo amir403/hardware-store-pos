@@ -45,6 +45,7 @@
   --animate-tick: tick 260ms var(--ease-out-expo);
   --animate-toast-in: toast-in 320ms var(--ease-out-expo);
   --animate-drawer-in: drawer-in 280ms var(--ease-out-expo);
+  --animate-drawer-right: drawer-right 280ms var(--ease-out-expo);
   --animate-fade-in: fade-in 200ms ease-out;
   --animate-pop-in: pop-in 160ms var(--ease-out-expo);
 
@@ -85,6 +86,14 @@
   @keyframes drawer-in {
     from {
       transform: translateX(-100%);
+    }
+    to {
+      transform: none;
+    }
+  }
+  @keyframes drawer-right {
+    from {
+      transform: translateX(100%);
     }
     to {
       transform: none;

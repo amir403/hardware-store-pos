@@ -22,6 +22,8 @@ import { getTotalReceivables, invoiceSettlement } from "@/app/lib/ledger";
 import { getTotalPayables } from "@/app/lib/payables";
 import { getProfitSummary } from "@/app/lib/profit";
 import { PageHeader } from "@/app/components/page-header";
+import { getOpenShift } from "@/app/lib/shifts";
+import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
 
 export const metadata = { title: "Dashboard" };
 
@@ -266,6 +268,8 @@ export default async function DashboardPage() {
     },
   ];
 
+  const openShift = await getOpenShift();
+
   return (
     <>
       <PageHeader
@@ -285,6 +289,8 @@ export default async function DashboardPage() {
           </Link>
         }
       />
+
+      <StaleShiftNotice shift={openShift} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

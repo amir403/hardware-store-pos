@@ -386,7 +386,7 @@ export default async function CustomerAccountPage({
 
         {/* Receive payment */}
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-6">
+          <div id="receive-payment" className="scroll-mt-4 rounded-xl border border-zinc-200 bg-white p-6">
             <h2 className="mb-4 text-sm font-semibold text-zinc-900">
               {t("Receive payment")}
             </h2>

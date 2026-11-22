@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import { useSuccessToast } from "@/app/components/toast";
 import type { FormState } from "@/app/actions/products";
 import { SubmitButton } from "@/app/components/submit-button";
@@ -28,6 +29,7 @@ export function PartyForm({
   submitLabel,
   showCreditLimit = false,
   successMessage,
+  doneHref,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   defaults: PartyDefaults;
@@ -36,12 +38,17 @@ export function PartyForm({
   showCreditLimit?: boolean;
   /** Toast shown after a successful save. */
   successMessage?: string;
+  /** Where to go after a successful save (closes the drawer the form sits in). */
+  doneHref?: string;
 }) {
   const t = useT();
-  const [state, formAction] = useActionState(
-    useSuccessToast(action, successMessage),
-    {}
-  );
+  const router = useRouter();
+  const withToast = useSuccessToast(action, successMessage);
+  const [state, formAction] = useActionState<FormState, FormData>(async (prev, formData) => {
+    const result = await withToast(prev, formData);
+    if (doneHref && !result?.error && !result?.fieldErrors) router.replace(doneHref, { scroll: false });
+    return result;
+  }, {});
 
   const fieldError = (field: string) =>
     state?.fieldErrors?.[field]?.[0] as string | undefined;

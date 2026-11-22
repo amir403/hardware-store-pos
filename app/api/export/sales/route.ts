@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/app/lib/prisma";
-import { toNum } from "@/app/lib/format";
+import { PAYMENT_LABELS, toNum } from "@/app/lib/format";
 
 export const runtime = "nodejs";
 
@@ -41,6 +41,9 @@ export async function GET(req: Request) {
     : "";
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const pay = searchParams.get("pay") ?? "";
+  // Same day boundaries as the page: local midnight, not UTC (a bare date parses as UTC).
+  const day = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
 
   const sales = await prisma.sale.findMany({
     where: {
@@ -53,11 +56,12 @@ export async function GET(req: Request) {
           }
         : {}),
       ...(status ? { status } : {}),
-      ...(from || to
+      ...(Object.hasOwn(PAYMENT_LABELS, pay) ? { paymentMethod: pay as "CASH" } : {}),
+      ...(day(from) || day(to)
         ? {
             createdAt: {
-              ...(from ? { gte: new Date(from) } : {}),
-              ...(to ? { lte: new Date(`${to}T23:59:59.999`) } : {}),
+              ...(day(from) ? { gte: new Date(`${from}T00:00:00`) } : {}),
+              ...(day(to) ? { lte: new Date(`${to}T23:59:59.999`) } : {}),
             },
           }
         : {}),

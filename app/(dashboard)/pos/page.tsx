@@ -10,6 +10,7 @@ import {
   type PosProduct,
 } from "@/app/components/pos/pos-terminal";
 import { getT } from "@/app/lib/i18n-server";
+import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
 
 export const metadata = { title: "New Sale" };
 
@@ -99,7 +100,9 @@ export default async function PosPage({
       notice={
         // Selling is never blocked — but cash taken with no shift open cannot be
         // reconciled against a drawer count.
-        !openShift && (
+        openShift ? (
+          <StaleShiftNotice shift={openShift} />
+        ) : (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span>
             {t("No shift is open. Open one so today's cash can be counted at closing.")}

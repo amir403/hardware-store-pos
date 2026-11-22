@@ -11,11 +11,16 @@ function New-PsAction([string]$file) {
     -WorkingDirectory (Split-Path $scripts)
 }
 
-# The app: starts at logon, runs with no time limit, restarts if it crashes.
+# The app: starts at logon, runs with no time limit. Windows can still end it
+# (sleep, log-off), and restart-on-failure does not cover a killed process, so
+# a 5-minute trigger acts as a watchdog: IgnoreNew skips it while the server runs.
+$watchdog = New-ScheduledTaskTrigger -Once -At (Get-Date).Date `
+  -RepetitionInterval (New-TimeSpan -Minutes 5)
 Register-ScheduledTask -TaskName "Hardware POS server" -Force `
   -Action (New-PsAction "start-pos.ps1") `
-  -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $user) `
+  -Trigger @((New-ScheduledTaskTrigger -AtLogOn -User $user), $watchdog) `
   -Settings (New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `
+    -MultipleInstances IgnoreNew -StartWhenAvailable `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null
 
