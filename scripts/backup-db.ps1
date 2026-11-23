@@ -8,7 +8,9 @@ param(
   [int]$Keep = 30
 )
 $ErrorActionPreference = "Stop"
-$bin = "C:\Program Files\PostgreSQL\18\bin"
+# Newest installed PostgreSQL, so a shop on another major version works too.
+$bin = (Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\pg_dump.exe" |
+  Sort-Object { [int]$_.Directory.Parent.Name } -Descending | Select-Object -First 1).DirectoryName
 $root = Split-Path $PSScriptRoot
 $envLines = Get-Content (Join-Path $root ".env")
 

@@ -1,14 +1,19 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "@/app/components/login-form";
+import { needsSetup } from "@/app/lib/setup";
 import { Wrench } from "lucide-react";
 
 export const metadata = {
-  title: "Sign in — Hardware POS",
+  title: "Sign in",
 };
 
 export default async function LoginPage() {
   const session = await auth();
+  // A fresh install has nobody to sign in as yet.
+  if (await needsSetup()) {
+    redirect("/setup");
+  }
   if (session?.user) {
     redirect("/");
   }

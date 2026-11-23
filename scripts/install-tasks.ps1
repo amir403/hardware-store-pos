@@ -1,13 +1,13 @@
 # Registers the two Windows scheduled tasks for this shop computer. Safe to run
 # again: it replaces the tasks. Run once: powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1
-param([string]$BackupTime = "22:00")
+param([string]$BackupTime = "22:00", [string]$BackupDir = "E:\pos-backups")
 $ErrorActionPreference = "Stop"
 $scripts = $PSScriptRoot
 $user = "$env:USERDOMAIN\$env:USERNAME"
 
-function New-PsAction([string]$file) {
+function New-PsAction([string]$file, [string]$extra = "") {
   New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scripts\$file`"" `
+    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scripts\$file`" $extra" `
     -WorkingDirectory (Split-Path $scripts)
 }
 
@@ -26,7 +26,7 @@ Register-ScheduledTask -TaskName "Hardware POS server" -Force `
 
 # The backup: nightly; if the computer was off at that time, runs when it next starts.
 Register-ScheduledTask -TaskName "Hardware POS backup" -Force `
-  -Action (New-PsAction "backup-db.ps1") `
+  -Action (New-PsAction "backup-db.ps1" "-Dir `"$BackupDir`"") `
   -Trigger (New-ScheduledTaskTrigger -Daily -At $BackupTime) `
   -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable `
     -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null

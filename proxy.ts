@@ -11,6 +11,9 @@ export function proxy(req: NextRequest) {
     req.cookies.has(name)
   );
 
+  // First-run setup is open to everyone; the page itself refuses once a user exists.
+  if (pathname === "/setup") return NextResponse.next();
+
   if (pathname === "/login") {
     if (hasSessionCookie) {
       return NextResponse.redirect(new URL("/", req.url));

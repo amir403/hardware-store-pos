@@ -31,6 +31,8 @@ Unit tests (`npm test`) cover the pure helpers only — ledger/payables settleme
 
 The shop computer runs the production build on PostgreSQL 18 (not `prisma dev`) through two scheduled tasks registered by `scripts/install-tasks.ps1`: `start-pos.ps1` at logon and the nightly `backup-db.ps1` (pg_dump to `E:\pos-backups`, optional `BACKUP_COPY_DIR`). See `docs/server-setup.md`; rebuild after code changes, and never run `npm run test:e2e` there (it writes a real sale).
 
+A new shop is installed with `scripts/install.ps1` (writes `.env`, creates the database, migrates, builds, registers the tasks; see `docs/new-shop-install.md`). It seeds nothing: while there are no users, `/login` redirects to `/setup` (`app/(auth)/setup`, `app/actions/setup.ts`), which saves the store settings and creates the first admin once.
+
 `DATABASE_URL` (and optionally `SHADOW_DATABASE_URL`) come from `.env`; the datasource URL is set in `prisma.config.ts`, not in `schema.prisma`.
 
 ## Architecture
