@@ -153,14 +153,14 @@ export default async function SalesPage({
 
       {/* Period */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex h-10 items-center gap-1 rounded-lg border border-zinc-200 bg-white p-1">
+        <div className="flex h-10 max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-zinc-200 bg-white p-1">
           {ranges.map((range) => {
             const active = range.from === from && range.to === to;
             return (
               <Link
                 key={range.label}
                 href={href({ from: range.from, to: range.to })}
-                className={`rounded-md px-3 py-1 text-sm transition ${
+                className={`whitespace-nowrap rounded-md px-3 py-1 text-sm transition ${
                   active ? "bg-brand-700 font-medium text-white" : "text-zinc-600 hover:bg-zinc-100"
                 }`}
               >

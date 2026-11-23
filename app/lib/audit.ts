@@ -20,6 +20,7 @@ export const AUDIT_ACTIONS = {
   "user.update": "User changed",
   "settings.update": "Settings changed",
   "expense.create": "Expense recorded",
+  "expense.update": "Expense changed",
   "expense.delete": "Expense removed",
   "shift.open": "Shift opened",
   "shift.close": "Shift closed",

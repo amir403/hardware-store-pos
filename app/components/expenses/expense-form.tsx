@@ -1,7 +1,12 @@
 "use client";
 
 import { useActionState, useRef } from "react";
-import { createExpenseAction, type ExpenseResult } from "@/app/actions/expenses";
+import { useRouter } from "next/navigation";
+import {
+  createExpenseAction,
+  updateExpenseAction,
+  type ExpenseResult,
+} from "@/app/actions/expenses";
 import { SubmitButton } from "@/app/components/submit-button";
 import { useToast } from "@/app/components/toast";
 import { EXPENSE_CATEGORIES, EXPENSE_LABELS } from "@/app/lib/expense-categories";
@@ -11,18 +16,41 @@ const inputClass =
 
 const labelClass = "text-sm font-medium text-zinc-700";
 
-export function ExpenseForm({ today }: { today: string }) {
+export type ExpenseDefaults = {
+  id: string;
+  category: string;
+  amount: number;
+  method: string;
+  spentOn: string;
+  note: string | null;
+};
+
+export function ExpenseForm({
+  today,
+  expense,
+  doneHref,
+}: {
+  today: string;
+  /** Editing an existing expense instead of recording a new one. */
+  expense?: ExpenseDefaults;
+  /** Where to go after a successful save (closes the drawer). */
+  doneHref?: string;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
+  const router = useRouter();
 
   async function submit(
     previous: ExpenseResult | null,
     formData: FormData
   ): Promise<ExpenseResult> {
-    const result = await createExpenseAction(previous, formData);
+    const result = expense
+      ? await updateExpenseAction(previous, formData)
+      : await createExpenseAction(previous, formData);
     if ("ok" in result) {
       formRef.current?.reset();
-      toast("Expense recorded");
+      toast(expense ? "Expense updated" : "Expense recorded");
+      if (doneHref) router.replace(doneHref, { scroll: false });
     }
     return result;
   }
@@ -35,6 +63,7 @@ export function ExpenseForm({ today }: { today: string }) {
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-4">
+      {expense && <input type="hidden" name="id" value={expense.id} />}
       {errorMessage && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {errorMessage}
@@ -48,7 +77,7 @@ export function ExpenseForm({ today }: { today: string }) {
         <select
           id="expense-category"
           name="category"
-          defaultValue="OTHER"
+          defaultValue={expense?.category ?? "OTHER"}
           className={inputClass}
         >
           {EXPENSE_CATEGORIES.map((c) => (
@@ -70,6 +99,8 @@ export function ExpenseForm({ today }: { today: string }) {
           min="0.01"
           step="0.01"
           required
+          autoFocus={!expense}
+          defaultValue={expense?.amount}
           placeholder="0.00"
           className={inputClass}
         />
@@ -83,7 +114,7 @@ export function ExpenseForm({ today }: { today: string }) {
           <select
             id="expense-method"
             name="method"
-            defaultValue="CASH"
+            defaultValue={expense?.method ?? "CASH"}
             className={inputClass}
           >
             <option value="CASH">Cash (drawer)</option>
@@ -102,7 +133,7 @@ export function ExpenseForm({ today }: { today: string }) {
             name="spentOn"
             type="date"
             max={today}
-            defaultValue={today}
+            defaultValue={expense?.spentOn ?? today}
             className={inputClass}
           />
         </div>
@@ -116,6 +147,7 @@ export function ExpenseForm({ today }: { today: string }) {
           id="expense-note"
           name="note"
           maxLength={300}
+          defaultValue={expense?.note ?? ""}
           placeholder="e.g. October electricity bill"
           className={inputClass}
         />
@@ -126,7 +158,7 @@ export function ExpenseForm({ today }: { today: string }) {
         expected cash.
       </p>
 
-      <SubmitButton>Record expense</SubmitButton>
+      <SubmitButton>{expense ? "Save changes" : "Record expense"}</SubmitButton>
     </form>
   );
 }
