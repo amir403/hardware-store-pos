@@ -12,14 +12,16 @@ import {
   WalletIcon,
   TruckIcon,
   PiggyBankIcon,
+  CheckCircle2Icon,
+  ChevronRightIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
-import { formatMoney, formatDateTime, formatQty, toNum, round2 } from "@/app/lib/format";
+import { formatMoney, formatDateTime, formatQty, toNum, round2, isoDay, PAYMENT_LABELS } from "@/app/lib/format";
 import { getTotalReceivables, invoiceSettlement } from "@/app/lib/ledger";
-import { getTotalPayables } from "@/app/lib/payables";
+import { getTotalPayables, purchaseSettlement } from "@/app/lib/payables";
 import { getProfitSummary } from "@/app/lib/profit";
 import { PageHeader } from "@/app/components/page-header";
 import { getOpenShift } from "@/app/lib/shifts";
@@ -36,6 +38,7 @@ export default async function DashboardPage() {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const today = isoDay(now);
   const startOfSevenDaysAgo = new Date(startOfToday);
   startOfSevenDaysAgo.setDate(startOfSevenDaysAgo.getDate() - 6);
 
@@ -53,6 +56,10 @@ export default async function DashboardPage() {
     payables,
     recentReturns,
     todayProfit,
+    heldCount,
+    openQuotes,
+    duePurchases,
+    openShift,
   ] = await Promise.all([
     prisma.sale.aggregate({
       where: { status: "COMPLETED", createdAt: { gte: startOfToday } },
@@ -138,6 +145,23 @@ export default async function DashboardPage() {
           new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate() + 1)
         )
       : Promise.resolve(null),
+    prisma.sale.count({ where: { status: "HELD" } }),
+    prisma.quotation.findMany({
+      where: { status: "OPEN", validUntil: { not: null } },
+      select: { validUntil: true },
+    }),
+    canSeePayables
+      ? prisma.purchase.findMany({
+          where: { dueDate: { lt: startOfToday } },
+          select: {
+            total: true,
+            paidAmount: true,
+            payments: { select: { amount: true } },
+            returns: { select: { amount: true } },
+          },
+        })
+      : Promise.resolve([]),
+    getOpenShift(),
   ]);
 
   const returnedSince = (from: Date, to?: Date) =>
@@ -210,12 +234,14 @@ export default async function DashboardPage() {
       value: formatMoney(todayRevenue, settings.currency),
       sub: `${todayAgg._count} transaction${todayAgg._count === 1 ? "" : "s"}`,
       icon: BanknoteIcon,
+      href: `/sales?from=${today}&to=${today}`,
     },
     {
       label: "This Month",
       value: formatMoney(monthRevenue, settings.currency),
       sub: `${monthAgg._count} transaction${monthAgg._count === 1 ? "" : "s"}`,
       icon: ReceiptTextIcon,
+      href: `/sales?from=${isoDay(startOfMonth)}&to=${today}`,
     },
     {
       label: "Receivables",
@@ -225,7 +251,7 @@ export default async function DashboardPage() {
           ? `${formatMoney(overdueTotal, settings.currency)} overdue`
           : "on credit accounts",
       icon: WalletIcon,
-      href: "/customers",
+      href: "/customers?show=owing&sort=balance",
       alert: overdueTotal > 0,
     },
     ...(todayProfit
@@ -250,7 +276,14 @@ export default async function DashboardPage() {
             value: formatMoney(payables, settings.currency),
             sub: "owed to suppliers",
             icon: TruckIcon,
-            href: "/suppliers",
+            href: "/suppliers?show=owed&sort=owed",
+          },
+          {
+            label: "Stock value",
+            value: formatMoney(stockValue, settings.currency),
+            sub: "at current cost prices",
+            icon: BoxesIcon,
+            href: "/inventory",
           },
         ]
       : []),
@@ -259,16 +292,80 @@ export default async function DashboardPage() {
       value: String(productCount),
       sub: "items in catalog",
       icon: PackageIcon,
+      href: "/products",
     },
     {
       label: "Low Stock",
       value: String(lowStock.length),
       sub: lowStock.length > 0 ? "need restocking" : "all stocked up",
       icon: AlertTriangleIcon,
+      href: "/products?stock=low",
+      alert: lowStock.length > 0,
     },
   ];
 
-  const openShift = await getOpenShift();
+  // Things someone should act on today; each opens the list already filtered to it.
+  const DAY = 24 * 60 * 60 * 1000;
+  const expiredQuotes = openQuotes.filter((q) => q.validUntil! < now).length;
+  const expiringQuotes = openQuotes.filter(
+    (q) => q.validUntil! >= now && q.validUntil!.getTime() - now.getTime() < 3 * DAY
+  ).length;
+  const overduePurchases = duePurchases.map(purchaseSettlement).filter((p) => p.due > 0);
+  const overduePayable = round2(overduePurchases.reduce((sum, p) => sum + p.due, 0));
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const tasks: { label: string; detail: string; href: string; tone: "red" | "amber" }[] = [
+    ...(!openShift
+      ? [{ label: "No shift is open", detail: "Open one so today's cash can be counted", href: "/shifts", tone: "amber" as const }]
+      : []),
+    ...(overdueSales.length > 0
+      ? [{
+          label: `${plural(overdueSales.length, "customer bill")} past the due date`,
+          detail: `${formatMoney(overdueTotal, settings.currency)} to collect`,
+          href: canSeePayables ? "/dues?show=overdue" : "/customers?show=owing&sort=balance",
+          tone: "red" as const,
+        }]
+      : []),
+    ...(overduePurchases.length > 0
+      ? [{
+          label: `${plural(overduePurchases.length, "supplier bill")} past the due date`,
+          detail: `${formatMoney(overduePayable, settings.currency)} to pay`,
+          href: "/purchases?show=overdue",
+          tone: "red" as const,
+        }]
+      : []),
+    ...(lowStock.length > 0
+      ? [{
+          label: `${plural(lowStock.length, "product")} at or below reorder level`,
+          detail: canSeePayables ? "Draft a purchase order from the reorder list" : "Tell the manager to restock",
+          href: canSeePayables ? "/inventory" : "/products?stock=low",
+          tone: "amber" as const,
+        }]
+      : []),
+    ...(heldCount > 0
+      ? [{
+          label: `${plural(heldCount, "bill")} on hold`,
+          detail: "Finish or discard them at New Sale",
+          href: "/sales?status=HELD",
+          tone: "amber" as const,
+        }]
+      : []),
+    ...(expiringQuotes > 0
+      ? [{
+          label: `${plural(expiringQuotes, "quotation")} expiring within 3 days`,
+          detail: "Follow up with the customer",
+          href: "/quotations?status=OPEN",
+          tone: "amber" as const,
+        }]
+      : []),
+    ...(expiredQuotes > 0
+      ? [{
+          label: `${plural(expiredQuotes, "open quotation")} already expired`,
+          detail: "Convert, extend or cancel",
+          href: "/quotations?status=EXPIRED",
+          tone: "amber" as const,
+        }]
+      : []),
+  ];
 
   return (
     <>
@@ -292,31 +389,56 @@ export default async function DashboardPage() {
 
       <StaleShiftNotice shift={openShift} />
 
+      <div className="mb-4 rounded-xl border border-zinc-200 bg-white">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
+          <h2 className="text-sm font-semibold text-zinc-900">Needs attention</h2>
+          {tasks.length > 0 && <span className="text-xs text-zinc-400">{plural(tasks.length, "item")}</span>}
+        </div>
+        {tasks.length === 0 ? (
+          <p className="flex items-center gap-2 px-5 py-4 text-sm text-emerald-700">
+            <CheckCircle2Icon className="h-4 w-4" /> All clear. Nothing is overdue or waiting.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-100">
+            {tasks.map((task) => (
+              <li key={task.label}>
+                <Link href={task.href} className="flex items-center gap-3 px-5 py-2.5 transition hover:bg-zinc-50">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${task.tone === "red" ? "bg-red-500" : "bg-amber-500"}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-zinc-900">{task.label}</span>
+                    <span className="block text-xs text-zinc-400">{task.detail}</span>
+                  </span>
+                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-zinc-400" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           const body = (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-zinc-500">
+                <p className="truncate text-xs font-medium text-zinc-500">
                   {card.label}
                 </p>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
-                  <Icon className="h-4 w-4" />
-                </span>
+                <Icon className="h-4 w-4 shrink-0 text-zinc-400" />
               </div>
               <p
-                className={`mt-2 text-2xl font-semibold tracking-tight ${
+                className={`mt-1 truncate text-base font-semibold tabular-nums tracking-tight sm:text-xl ${
                   card.alert ? "text-amber-700" : "text-zinc-900"
                 }`}
               >
                 {card.value}
               </p>
-              <p className="mt-1 text-xs text-zinc-400">{card.sub}</p>
+              <p className="truncate text-xs text-zinc-400">{card.sub}</p>
             </>
           );
-          const className = `rounded-xl border bg-white p-5 ${
+          const className = `min-w-0 rounded-xl border bg-white px-4 py-3 ${
             card.alert ? "border-amber-200" : "border-zinc-200"
           }`;
           return card.href ? (
@@ -404,10 +526,11 @@ export default async function DashboardPage() {
           ) : (
             <ul className="divide-y divide-zinc-100">
               {lowStock.slice(0, 6).map((product) => (
-                <li
-                  key={product.id}
-                  className="flex items-center justify-between px-5 py-3"
-                >
+                <li key={product.id}>
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="flex items-center justify-between px-5 py-3 transition hover:bg-zinc-50"
+                  >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-zinc-900">
                       {product.name}
@@ -430,6 +553,7 @@ export default async function DashboardPage() {
                       reorder at {formatQty(toNum(product.reorderLevel))}
                     </p>
                   </div>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -491,7 +615,7 @@ export default async function DashboardPage() {
             <ul className="mt-4 divide-y divide-zinc-100">
               {paymentSales.map((payment) => (
                 <li key={payment.paymentMethod} className="flex items-center justify-between py-3 text-sm">
-                  <span className="text-zinc-600">{payment.paymentMethod.replaceAll("_", " ")}</span>
+                  <span className="text-zinc-600">{PAYMENT_LABELS[payment.paymentMethod] ?? payment.paymentMethod}</span>
                   <span className="text-right">
                     <span className="block font-semibold text-zinc-900">{formatMoney(toNum(payment._sum.total), settings.currency)}</span>
                     <span className="text-xs text-zinc-400">{payment._count} transaction{payment._count === 1 ? "" : "s"}</span>
@@ -503,18 +627,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-              <BoxesIcon className="h-4 w-4 text-zinc-500" />
-              Inventory value
-            </h2>
-            <p className="mt-1 text-xs text-zinc-400">Estimated value using current product costs</p>
-          </div>
-          <p className="text-lg font-semibold text-zinc-900">{formatMoney(stockValue, settings.currency)}</p>
-        </div>
-      </div>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BanknoteIcon, CalendarClockIcon, PrinterIcon, UsersIcon } from "lucide-react";
+import { BanknoteIcon, CalendarClockIcon, UsersIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser, hasRole } from "@/app/lib/auth";
@@ -48,14 +48,23 @@ const BUCKET_LABELS: Record<BucketKey, string> = Object.fromEntries(
   BUCKETS.map((b) => [b.key, b.label])
 ) as Record<BucketKey, string>;
 
-export default async function DuesPage() {
+// "week" = not late yet but payable within the next 7 days; the rest match the aging buckets.
+const SHOWS = ["overdue", "week", ...BUCKETS.map((b) => b.key)] as const;
+type Show = "" | (typeof SHOWS)[number];
+
+export default async function DuesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string }>;
+}) {
   // The nav hides this from cashiers; guard the route itself as well.
   const user = await getCurrentUser();
   if (!hasRole(user, "ADMIN", "MANAGER")) {
     redirect("/");
   }
 
-  const settings = await getSettings();
+  const [settings, params] = await Promise.all([getSettings(), searchParams]);
+  const show: Show = (SHOWS as readonly string[]).includes(params.show ?? "") ? (params.show as Show) : "";
   const now = new Date();
 
   const [customers, sales] = await Promise.all([
@@ -141,6 +150,19 @@ export default async function DuesPage() {
     0
   );
 
+  const dueThisWeek = openInvoices.filter((i) => i.days !== null && i.days <= 0 && i.days > -7);
+  const shown = openInvoices.filter((invoice) =>
+    show === ""
+      ? true
+      : show === "overdue"
+        ? invoice.bucket !== "current"
+        : show === "week"
+          ? dueThisWeek.includes(invoice)
+          : invoice.bucket === show
+  );
+  const shownTotal = round2(shown.reduce((sum, i) => sum + i.due, 0));
+  const href = (next: Show) => (next ? `/dues?show=${next}` : "/dues");
+
   // Accounts are ranked by what they owe, not by invoice count — that is the
   // order a shopkeeper actually walks down the list in.
   const accounts = customers
@@ -153,6 +175,7 @@ export default async function DuesPage() {
       invoices: openInvoices.filter((i) => i.customerId === customer.id),
     }))
     .filter((account) => account.outstanding > 0 || account.invoices.length > 0)
+    .filter((account) => show === "" || account.invoices.some((i) => shown.includes(i)))
     .sort((a, b) => b.outstanding - a.outstanding);
 
   const cards: {
@@ -161,12 +184,14 @@ export default async function DuesPage() {
     sub: string;
     icon: LucideIcon;
     alert?: boolean;
+    href: string;
   }[] = [
     {
       label: "Total out on credit",
       value: formatMoney(totalDue, settings.currency),
       sub: `${openInvoices.length} open invoice${openInvoices.length === 1 ? "" : "s"}`,
       icon: BanknoteIcon,
+      href: href(""),
     },
     {
       label: "Overdue",
@@ -174,12 +199,14 @@ export default async function DuesPage() {
       sub: `${overdueCount} invoice${overdueCount === 1 ? "" : "s"} past their date`,
       icon: CalendarClockIcon,
       alert: overdueTotal > 0,
+      href: href("overdue"),
     },
     {
-      label: "Accounts to chase",
-      value: String(accounts.length),
-      sub: "customers with an open balance",
+      label: "Due this week",
+      value: formatMoney(round2(dueThisWeek.reduce((sum, i) => sum + i.due, 0)), settings.currency),
+      sub: `${dueThisWeek.length} invoice${dueThisWeek.length === 1 ? "" : "s"} payable in the next 7 days`,
       icon: UsersIcon,
+      href: href("week"),
     },
   ];
 
@@ -210,63 +237,77 @@ export default async function DuesPage() {
       ) : (
         <>
           {/* Summary */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {cards.map((card) => {
               const Icon = card.icon;
+              const active = card.href === href(show);
               return (
-                <div
+                <Link
                   key={card.label}
-                  className={`rounded-xl border bg-white p-5 ${
-                    card.alert ? "border-red-200" : "border-zinc-200"
+                  href={card.href}
+                  className={`min-w-0 rounded-xl border bg-white px-4 py-3 transition hover:border-zinc-300 ${
+                    active ? "border-brand-600 ring-1 ring-brand-600/20" : card.alert ? "border-red-200" : "border-zinc-200"
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-zinc-500">{card.label}</p>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
-                      <Icon className="h-4 w-4" />
-                    </span>
+                    <p className="truncate text-xs font-medium text-zinc-500">{card.label}</p>
+                    <Icon className="h-4 w-4 shrink-0 text-zinc-400" />
                   </div>
                   <p
-                    className={`mt-2 text-2xl font-semibold tracking-tight ${
+                    className={`mt-1 truncate text-xl font-semibold tabular-nums tracking-tight ${
                       card.alert ? "text-red-700" : "text-zinc-900"
                     }`}
                   >
                     {card.value}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-400">{card.sub}</p>
-                </div>
+                  <p className="truncate text-xs text-zinc-400">{card.sub}</p>
+                </Link>
               );
             })}
           </div>
 
           {/* Aging spread */}
-          <div className="mt-6 flex flex-wrap gap-2 print:hidden">
+          <div className="mt-4 flex flex-wrap items-center gap-2 print:hidden">
             {BUCKETS.map((bucket) => {
               const entry = totalsByBucket[bucket.key];
               if (entry.count === 0) return null;
               return (
-                <span
+                <Link
                   key={bucket.key}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium ${bucket.tone}`}
+                  href={href(show === bucket.key ? "" : bucket.key)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${bucket.tone} ${
+                    show === bucket.key ? "ring-2 ring-zinc-900/20" : "hover:opacity-80"
+                  }`}
                 >
                   {bucket.label}
                   <span className="font-semibold">
                     {formatMoney(entry.amount, settings.currency)}
                   </span>
                   <span className="opacity-70">· {entry.count}</span>
-                </span>
+                </Link>
               );
             })}
+            {show && (
+              <Link href="/dues" className="text-xs font-medium text-brand-700 hover:underline">
+                Show all
+              </Link>
+            )}
           </div>
 
           {/* Open invoices */}
           <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-zinc-900">
-                Open invoices
+                {show === "overdue"
+                  ? "Overdue invoices"
+                  : show === "week"
+                    ? "Due in the next 7 days"
+                    : show
+                      ? `Open invoices · ${BUCKET_LABELS[show].toLowerCase()}`
+                      : "Open invoices"}
               </h2>
             </div>
-            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-2.5 font-medium">Invoice</th>
@@ -280,9 +321,16 @@ export default async function DuesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {openInvoices.map((invoice) => (
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-sm text-zinc-400">
+                      No invoices in this view.
+                    </td>
+                  </tr>
+                )}
+                {shown.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-2.5">
+                    <td className="whitespace-nowrap px-4 py-2.5">
                       <Link
                         href={`/sales/${invoice.id}`}
                         className="font-medium text-zinc-900 hover:underline"
@@ -304,22 +352,26 @@ export default async function DuesPage() {
                     <td className="px-4 py-2.5 whitespace-nowrap text-zinc-500">
                       {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-zinc-600">
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-zinc-600">
                       {formatMoney(invoice.billed, settings.currency)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-emerald-700">
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-emerald-700">
                       {formatMoney(invoice.settled, settings.currency)}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-amber-700">
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-amber-700">
                       {formatMoney(invoice.due, settings.currency)}
                     </td>
                     <td className="px-4 py-2.5">
                       <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${BUCKET_STYLES[invoice.bucket]}`}
+                        className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium ${BUCKET_STYLES[invoice.bucket]}`}
                       >
                         {invoice.days && invoice.days > 0
                           ? `${invoice.days}d late`
-                          : BUCKET_LABELS[invoice.bucket]}
+                          : invoice.days === 0
+                            ? "Due today"
+                            : invoice.days !== null && invoice.days > -7
+                              ? `Due in ${-invoice.days}d`
+                              : BUCKET_LABELS[invoice.bucket]}
                       </span>
                     </td>
                   </tr>
@@ -328,11 +380,11 @@ export default async function DuesPage() {
               <tfoot>
                 <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold text-zinc-900">
                   <td className="px-4 py-3" colSpan={6}>
-                    {openInvoices.length} open invoice
-                    {openInvoices.length === 1 ? "" : "s"}
+                    {shown.length} invoice
+                    {shown.length === 1 ? "" : "s"}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {formatMoney(totalDue, settings.currency)}
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                    {formatMoney(shownTotal, settings.currency)}
                   </td>
                   <td className="px-4 py-3" />
                 </tr>
@@ -341,13 +393,13 @@ export default async function DuesPage() {
           </div>
 
           {/* Per-account view — what to knock on each door for */}
-          <div className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+          <div id="by-customer" className="mt-6 overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-zinc-900">
                 By customer
               </h2>
             </div>
-            <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-2.5 font-medium">Customer</th>
@@ -366,19 +418,21 @@ export default async function DuesPage() {
                     limit !== null && account.outstanding >= limit;
                   return (
                     <tr key={account.id} className="hover:bg-zinc-50">
-                      <td className="px-4 py-2.5 font-medium text-zinc-900">
-                        {account.name}
+                      <td className="px-4 py-2.5">
+                        <Link href={`/customers/${account.id}`} className="font-medium text-zinc-900 hover:underline">
+                          {account.name}
+                        </Link>
                       </td>
-                      <td className="px-4 py-2.5 text-zinc-600">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-zinc-600">
                         {account.phone ?? "—"}
                       </td>
                       <td className="px-4 py-2.5 text-right text-zinc-600">
                         {account.invoices.length}
                       </td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-amber-700">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-amber-700">
                         {formatMoney(account.outstanding, settings.currency)}
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="whitespace-nowrap px-4 py-2.5">
                         {limit === null ? (
                           <span className="text-zinc-400">No cap</span>
                         ) : (
@@ -409,11 +463,10 @@ export default async function DuesPage() {
                           })}
                         />
                         <Link
-                          href={`/customers/${account.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 print:hidden"
+                          href={`/customers/${account.id}#receive-payment`}
+                          className="inline-flex items-center whitespace-nowrap rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800 print:hidden"
                         >
-                          <PrinterIcon className="h-3.5 w-3.5" />
-                          Ledger &amp; receive
+                          Receive payment
                         </Link>
                         </div>
                       </td>

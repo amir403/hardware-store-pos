@@ -30,6 +30,10 @@ karen. Yahi account computer aur phone dono par use hoga.
    `https://dukaan-pc.tail1234.ts.net`. Yeh link save kar len. `--bg` ki wajah
    se yeh computer restart ke baad bhi chalta rehta hai.
 
+   Agar `tailscale` "not recognized" aaye to PowerShell Tailscale install hone se
+   pehle khuli thi: window band karke nayi kholen, ya poora path likhen:
+   `& "C:\Program Files\Tailscale\tailscale.exe" serve --bg 3000`
+
 ### 4. Maalik ka phone
 1. Play Store ya App Store se **Tailscale** install karen.
 2. Usi account se login karen aur **Connect** on rakhen.
