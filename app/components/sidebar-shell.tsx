@@ -21,7 +21,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   return (
     <aside
       data-collapsed={collapsed}
-      className={`group/side sticky top-0 hidden h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden bg-zinc-950 py-4 transition-[width] duration-200 lg:flex print:hidden ${
+      className={`group/side scroll-dark sticky top-0 hidden h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden bg-zinc-950 py-4 transition-[width] duration-200 lg:flex print:hidden ${
         collapsed ? "w-16 px-2" : "w-60 px-4"
       }`}
     >

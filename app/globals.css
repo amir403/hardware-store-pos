@@ -141,6 +141,15 @@
     scrollbar-color: var(--color-zinc-300) transparent;
   }
 
+  /* Dark side menus: a thin scrollbar that only shows while the pointer is over the menu. */
+  .scroll-dark {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .scroll-dark:hover {
+    scrollbar-color: var(--color-zinc-700) transparent;
+  }
+
   body {
     background: var(--color-zinc-50);
     color: var(--color-zinc-900);

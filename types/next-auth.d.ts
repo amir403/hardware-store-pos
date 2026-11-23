@@ -10,6 +10,7 @@ declare module "next-auth" {
 
   interface User {
     role?: "ADMIN" | "MANAGER" | "CASHIER";
+    passwordStamp?: string;
   }
 }
 
@@ -17,5 +18,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     role?: "ADMIN" | "MANAGER" | "CASHIER";
+    passwordStamp?: string;
   }
 }

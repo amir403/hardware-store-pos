@@ -60,7 +60,7 @@ export function MobileNav({
             onClick={close}
             className="absolute inset-0 animate-fade-in bg-black/40"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] animate-drawer-in flex-col overflow-y-auto bg-zinc-950 p-4">
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] animate-drawer-in scroll-dark flex-col overflow-y-auto bg-zinc-950 p-4">
             <div className="mb-4 flex items-center justify-between px-2">
               <span className="text-sm font-semibold text-white">{t("Menu")}</span>
               <button
