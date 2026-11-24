@@ -20,17 +20,20 @@ powershell -ExecutionPolicy Bypass -File scripts\install-tasks.ps1 -BackupTime 2
 
 ## Code update ke baad
 
-Production app purana build chalati hai. Har update ke baad:
+Production app purana build chalati hai. Naya code lane ke liye ek command (dukaan band hone ke baad behtar):
 
 ```powershell
-Disable-ScheduledTask -TaskName "Hardware POS server"; Stop-ScheduledTask -TaskName "Hardware POS server"
-npm.cmd run build
-Enable-ScheduledTask -TaskName "Hardware POS server"; Start-ScheduledTask -TaskName "Hardware POS server"
+powershell -ExecutionPolicy Bypass -File scripts\update.ps1
 ```
 
-Task har 5 minute mein check karta hai ke server chal raha hai ya nahi, aur band ho to chala deta hai. Is liye sirf
-`Stop` kaafi nahi: pehle `Disable` karein, warna build ke beech server dobara chal jayega.
-Migration aayi ho to build se pehle `npx.cmd prisma migrate deploy` bhi chalayen.
+Yeh tarteeb se: pehle backup banata hai (backup na bane to ruk jata hai), GitHub se naya code
+leta hai, packages aur database update karta hai, build karta hai aur server dobara chalata hai.
+Build fail ho to purana build wapas rakh kar purana version chala deta hai. Folder mein kisi ne
+haath se file badli ho to kuch nahi chhedta. Server 2 se 5 minute band rehta hai.
+
+Haath se karna ho: task pehle `Disable` karein, phir `Stop`, phir `npx.cmd prisma migrate deploy`
+aur `npm.cmd run build`, phir `Enable` aur `Start`. Sirf `Stop` kaafi nahi: task har 5 minute mein
+server band dekh kar chala deta hai, aur build ke beech chal jayega.
 Development (`npm run dev`) karni ho to bhi pehle task `Disable` karein (dono port 3000 mangte hain) aur baad mein `Enable`.
 
 ## Backup ki doosri copy
@@ -42,10 +45,14 @@ har backup wahan bhi copy ho jayega (aakhri 30):
 BACKUP_COPY_DIR="\\100.1.1.250\databases\hardware-pos"
 ```
 
-USB drive (maslan `F:\pos-backups`) ya Google Drive ka folder bhi de sakte hain. Mapped drive letter (Y:)
-ki bajaye poora `\\...` path likhein. Copy na ho sake to bhi local backup ban jata hai, sirf log mein WARNING aati hai.
+USB drive (maslan `F:\pos-backups`) ya Google Drive ka folder bhi de sakte hain. Google Drive ke liye
+"Google Drive for desktop" install karein; phir `BACKUP_COPY_DIR="G:\My Drive\pos-backups"` likhein aur
+Drive khud internet par chadha deta hai. Mapped drive letter (Y:) ki bajaye poora `\\...` path likhein.
+Copy na ho sake to bhi local backup ban jata hai.
 
-Haftay mein ek dafa `E:\pos-backups\backup.log` dekh lein ke roz `ok` likha aa raha hai.
+Haal app mein dekhen: **Settings → Backups** (aakhri backup kab bana, doosri copy gayi ya nahi,
+"Back up now" button). Backup fail ho, 2 din se na bane, ya copy na ho sake to Admin ko Dashboard
+par "Needs attention" mein laal line aati hai. Tafseel `E:\pos-backups\backup.log` mein.
 
 ## Backup se wapas laana (restore)
 

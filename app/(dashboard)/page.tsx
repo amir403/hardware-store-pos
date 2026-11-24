@@ -26,6 +26,7 @@ import { getProfitSummary } from "@/app/lib/profit";
 import { PageHeader } from "@/app/components/page-header";
 import { getOpenShift } from "@/app/lib/shifts";
 import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
+import { backupProblem, readBackupStatus } from "@/app/lib/backup";
 
 export const metadata = { title: "Dashboard" };
 
@@ -163,6 +164,7 @@ export default async function DashboardPage() {
       : Promise.resolve([]),
     getOpenShift(),
   ]);
+  const backupIssue = user.role === "ADMIN" ? backupProblem(await readBackupStatus(), now) : null;
 
   const returnedSince = (from: Date, to?: Date) =>
     round2(
@@ -314,6 +316,9 @@ export default async function DashboardPage() {
   const overduePayable = round2(overduePurchases.reduce((sum, p) => sum + p.due, 0));
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const tasks: { label: string; detail: string; href: string; tone: "red" | "amber" }[] = [
+    ...(backupIssue
+      ? [{ label: backupIssue, detail: "Check the backups in Settings", href: "/settings#backups", tone: "red" as const }]
+      : []),
     ...(!openShift
       ? [{ label: "No shift is open", detail: "Open one so today's cash can be counted", href: "/shifts", tone: "amber" as const }]
       : []),

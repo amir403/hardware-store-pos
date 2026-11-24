@@ -67,4 +67,10 @@ Phir:
 
 ## Update
 
-Naya code aane par `docs\server-setup.md` ka "Code update ke baad" hissa.
+Naya code aane par, POS ke folder mein:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\update.ps1
+```
+
+Pehle backup, phir update; build fail ho to purana version chalta rehta hai. Tafseel `docs\server-setup.md` mein.

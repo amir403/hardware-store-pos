@@ -33,6 +33,8 @@ The shop computer runs the production build on PostgreSQL 18 (not `prisma dev`) 
 
 A new shop is installed with `scripts/install.ps1` (writes `.env`, creates the database, migrates, builds, registers the tasks; see `docs/new-shop-install.md`). It seeds nothing: while there are no users, `/login` redirects to `/setup` (`app/(auth)/setup`, `app/actions/setup.ts`), which saves the store settings and creates the first admin once.
 
+Updates on a shop computer go through `scripts/update.ps1` (backup first, `git pull --ff-only`, `npm ci`, migrate, build with the previous `.next` kept as `.next-previous` and restored if the build fails). `backup-db.ps1` writes `logs/backup-status.json`; `app/lib/backup.ts` reads it for Settings → Backups and the dashboard attention list, and `app/actions/backup.ts` runs the backup task on demand (admin only).
+
 `DATABASE_URL` (and optionally `SHADOW_DATABASE_URL`) come from `.env`; the datasource URL is set in `prisma.config.ts`, not in `schema.prisma`.
 
 ## Architecture
