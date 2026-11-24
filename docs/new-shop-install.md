@@ -61,7 +61,34 @@ Phir:
   Pehle preview aata hai (naye, update, ghaltiyan), "Import" dabane par hi save hota
   hai. Opening stock naye products ka shuru ka stock ban jata hai.
 
-## 5. Phone aur doosre computer
+## 5. License
+
+Naya install 14 din trial par chalta hai. Us dauraan:
+
+1. Dukaan wale computer par **Settings → Licence** kholen aur "This computer's code" (maslan
+   `F7BD-1A15-13`) copy karein.
+2. Apne (vendor ke) computer par, jahan private key hai:
+
+   ```powershell
+   npx tsx scripts/license.ts issue --shop "Dukaan ka naam" --machine F7BD-1A15-13 --months 12
+   ```
+
+3. Jo key chhapti hai (`HPOS1.…`) woh dukaan ke Settings → Licence mein paste karke **Save licence**.
+
+Muddat khatam hone se 15 din pehle Admin ko warning aati hai, khatam hone ke baad 7 din ki
+mohlat, phir naye bill band (reports, wusooli aur backup chalte rehte hain). Renew ke liye
+wahi command nayi tareekh ke saath. Windows dobara install ho to computer ka code badal jata
+hai: nayi key banayen.
+
+Private key (`%USERPROFILE%\.hardware-pos-license\private.pem`) sirf vendor ke paas rahe,
+kisi dukaan ke computer par nahi, aur us ka backup rakhein: gum hui to nayi keys nahi banengi.
+
+## 6. Printer aur scanner
+
+`docs\printer-scanner.md` dekhen: receipt printer, ek-click print, barcode scanner, label
+printer aur cash drawer.
+
+## 7. Phone aur doosre computer
 
 `docs\phone-access.md` dekhen (Tailscale).
 

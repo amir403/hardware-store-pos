@@ -16,6 +16,7 @@ export type SettingsDefaults = {
   receiptFooter: string;
   receiptPaper: string;
   labelSize: string;
+  receiptLang: string;
   cashierMaxDiscountPct: string;
 };
 
@@ -183,6 +184,17 @@ export function SettingsForm({
             className={inputClass}
           />
           <p className="text-xs text-zinc-400">The last line of every receipt, e.g. your return policy.</p>
+        </div>
+
+        <div className="flex flex-col gap-1.5 sm:max-w-xs">
+          <label htmlFor="receiptLang" className={labelClass}>
+            Receipt language
+          </label>
+          <select id="receiptLang" name="receiptLang" defaultValue={defaults.receiptLang} className={inputClass}>
+            <option value="en">English</option>
+            <option value="ur">Roman Urdu (Kul, Wusool, Baqi…)</option>
+          </select>
+          <p className="text-xs text-zinc-400">What the customer reads on the printed bill and quotation. The screens follow each device&apos;s own language switch.</p>
         </div>
       </Section>
 

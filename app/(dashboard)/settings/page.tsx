@@ -6,6 +6,10 @@ import { readBackupStatus, backupProblem } from "@/app/lib/backup";
 import { PageHeader } from "@/app/components/page-header";
 import { SettingsForm } from "@/app/components/settings-form";
 import { BackupNowButton } from "@/app/components/backup-now-button";
+import { LicenseForm } from "@/app/components/license-form";
+import { licenseMessage } from "@/app/components/license-notice";
+import { getLicense } from "@/app/lib/license-server";
+import { getT } from "@/app/lib/i18n-server";
 import { updateSettingsAction } from "@/app/actions/settings";
 
 export const metadata = { title: "Settings" };
@@ -16,7 +20,8 @@ export default async function SettingsPage() {
     redirect("/");
   }
 
-  const [settings, backup] = await Promise.all([getSettings(), readBackupStatus()]);
+  const [settings, backup, license] = await Promise.all([getSettings(), readBackupStatus(), getLicense()]);
+  const licenseNote = licenseMessage(license, await getT());
   const problem = backupProblem(backup, new Date());
 
   return (
@@ -39,9 +44,38 @@ export default async function SettingsPage() {
             receiptFooter: settings.receiptFooter ?? "",
             receiptPaper: settings.receiptPaper,
             labelSize: settings.labelSize,
+            receiptLang: settings.receiptLang,
             cashierMaxDiscountPct: String(settings.cashierMaxDiscountPct),
           }}
         />
+
+        <section id="license" className="mt-6 grid scroll-mt-4 gap-4 rounded-xl border border-zinc-200 bg-white p-5 md:grid-cols-3 md:gap-6">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Licence</h2>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              Each computer needs its own licence key. When it runs out, new bills stop after a short grace period;
+              your data, reports and backups are never locked.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 text-sm md:col-span-2">
+            {license.payload && license.status !== "wrong-machine" && license.status !== "invalid" ? (
+              <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-2">
+                <dt className="text-zinc-500">Licensed to</dt>
+                <dd className="text-zinc-900">{license.payload.shop}</dd>
+                <dt className="text-zinc-500">Valid until</dt>
+                <dd className={license.canSell ? "text-zinc-900" : "font-medium text-red-700"}>{license.payload.expires}</dd>
+              </dl>
+            ) : license.status === "dev" ? (
+              <p className="text-zinc-500">Development copy: no licence needed.</p>
+            ) : null}
+            {licenseNote && (
+              <p className={`rounded-lg px-3 py-2 text-xs ${licenseNote.tone === "red" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800"}`}>
+                {licenseNote.text}
+              </p>
+            )}
+            <LicenseForm machine={license.machine} />
+          </div>
+        </section>
 
         <section id="backups" className="mt-6 grid scroll-mt-4 gap-4 rounded-xl border border-zinc-200 bg-white p-5 md:grid-cols-3 md:gap-6">
           <div>

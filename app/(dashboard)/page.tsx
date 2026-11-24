@@ -27,12 +27,16 @@ import { PageHeader } from "@/app/components/page-header";
 import { getOpenShift } from "@/app/lib/shifts";
 import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
 import { backupProblem, readBackupStatus } from "@/app/lib/backup";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const settings = await getSettings();
+  const [settings, t] = await Promise.all([getSettings(), getT()]);
+  /** Singular or plural sentence by count; Urdu reads the same for both. */
+  const tn = (n: number, one: string, many: string, vars: Record<string, string | number> = {}) =>
+    t(n === 1 ? one : many, { n, ...vars });
   // Supplier balances are owner-level numbers, like the suppliers page itself.
   const canSeePayables = hasRole(user, "ADMIN", "MANAGER");
 
@@ -232,26 +236,26 @@ export default async function DashboardPage() {
     alert?: boolean;
   }[] = [
     {
-      label: "Today's Sales",
+      label: t("Today's Sales"),
       value: formatMoney(todayRevenue, settings.currency),
-      sub: `${todayAgg._count} transaction${todayAgg._count === 1 ? "" : "s"}`,
+      sub: tn(todayAgg._count, "1 transaction", "{n} transactions"),
       icon: BanknoteIcon,
       href: `/sales?from=${today}&to=${today}`,
     },
     {
-      label: "This Month",
+      label: t("This Month"),
       value: formatMoney(monthRevenue, settings.currency),
-      sub: `${monthAgg._count} transaction${monthAgg._count === 1 ? "" : "s"}`,
+      sub: tn(monthAgg._count, "1 transaction", "{n} transactions"),
       icon: ReceiptTextIcon,
       href: `/sales?from=${isoDay(startOfMonth)}&to=${today}`,
     },
     {
-      label: "Receivables",
+      label: t("Receivables"),
       value: formatMoney(receivables, settings.currency),
       sub:
         overdueTotal > 0
-          ? `${formatMoney(overdueTotal, settings.currency)} overdue`
-          : "on credit accounts",
+          ? t("{amount} overdue", { amount: formatMoney(overdueTotal, settings.currency) })
+          : t("on credit accounts"),
       icon: WalletIcon,
       href: "/customers?show=owing&sort=balance",
       alert: overdueTotal > 0,
@@ -259,12 +263,15 @@ export default async function DashboardPage() {
     ...(todayProfit
       ? [
           {
-            label: "Today's Net Profit",
+            label: t("Today's Net Profit"),
             value: formatMoney(todayProfit.netProfit, settings.currency),
             sub:
               todayProfit.expenses > 0
-                ? `${formatMoney(todayProfit.grossProfit, settings.currency)} gross − ${formatMoney(todayProfit.expenses, settings.currency)} expenses`
-                : "no expenses recorded today",
+                ? t("{gross} gross − {expenses} expenses", {
+                    gross: formatMoney(todayProfit.grossProfit, settings.currency),
+                    expenses: formatMoney(todayProfit.expenses, settings.currency),
+                  })
+                : t("no expenses recorded today"),
             icon: PiggyBankIcon,
             href: "/reports",
             alert: todayProfit.netProfit < 0,
@@ -274,32 +281,32 @@ export default async function DashboardPage() {
     ...(canSeePayables
       ? [
           {
-            label: "Payables",
+            label: t("Payables"),
             value: formatMoney(payables, settings.currency),
-            sub: "owed to suppliers",
+            sub: t("owed to suppliers"),
             icon: TruckIcon,
             href: "/suppliers?show=owed&sort=owed",
           },
           {
-            label: "Stock value",
+            label: t("Stock value"),
             value: formatMoney(stockValue, settings.currency),
-            sub: "at current cost prices",
+            sub: t("at current cost prices"),
             icon: BoxesIcon,
             href: "/inventory",
           },
         ]
       : []),
     {
-      label: "Active Products",
+      label: t("Active Products"),
       value: String(productCount),
-      sub: "items in catalog",
+      sub: t("items in catalog"),
       icon: PackageIcon,
       href: "/products",
     },
     {
-      label: "Low Stock",
+      label: t("Low Stock"),
       value: String(lowStock.length),
-      sub: lowStock.length > 0 ? "need restocking" : "all stocked up",
+      sub: lowStock.length > 0 ? t("need restocking") : t("all stocked up"),
       icon: AlertTriangleIcon,
       href: "/products?stock=low",
       alert: lowStock.length > 0,
@@ -314,58 +321,57 @@ export default async function DashboardPage() {
   ).length;
   const overduePurchases = duePurchases.map(purchaseSettlement).filter((p) => p.due > 0);
   const overduePayable = round2(overduePurchases.reduce((sum, p) => sum + p.due, 0));
-  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const tasks: { label: string; detail: string; href: string; tone: "red" | "amber" }[] = [
     ...(backupIssue
-      ? [{ label: backupIssue, detail: "Check the backups in Settings", href: "/settings#backups", tone: "red" as const }]
+      ? [{ label: backupIssue, detail: t("Check the backups in Settings"), href: "/settings#backups", tone: "red" as const }]
       : []),
     ...(!openShift
-      ? [{ label: "No shift is open", detail: "Open one so today's cash can be counted", href: "/shifts", tone: "amber" as const }]
+      ? [{ label: t("No shift is open"), detail: t("Open one so today's cash can be counted"), href: "/shifts", tone: "amber" as const }]
       : []),
     ...(overdueSales.length > 0
       ? [{
-          label: `${plural(overdueSales.length, "customer bill")} past the due date`,
-          detail: `${formatMoney(overdueTotal, settings.currency)} to collect`,
+          label: tn(overdueSales.length, "1 customer bill past the due date", "{n} customer bills past the due date"),
+          detail: t("{amount} to collect", { amount: formatMoney(overdueTotal, settings.currency) }),
           href: canSeePayables ? "/dues?show=overdue" : "/customers?show=owing&sort=balance",
           tone: "red" as const,
         }]
       : []),
     ...(overduePurchases.length > 0
       ? [{
-          label: `${plural(overduePurchases.length, "supplier bill")} past the due date`,
-          detail: `${formatMoney(overduePayable, settings.currency)} to pay`,
+          label: tn(overduePurchases.length, "1 supplier bill past the due date", "{n} supplier bills past the due date"),
+          detail: t("{amount} to pay", { amount: formatMoney(overduePayable, settings.currency) }),
           href: "/purchases?show=overdue",
           tone: "red" as const,
         }]
       : []),
     ...(lowStock.length > 0
       ? [{
-          label: `${plural(lowStock.length, "product")} at or below reorder level`,
-          detail: canSeePayables ? "Draft a purchase order from the reorder list" : "Tell the manager to restock",
+          label: tn(lowStock.length, "1 product at or below reorder level", "{n} products at or below reorder level"),
+          detail: canSeePayables ? t("Draft a purchase order from the reorder list") : t("Tell the manager to restock"),
           href: canSeePayables ? "/inventory" : "/products?stock=low",
           tone: "amber" as const,
         }]
       : []),
     ...(heldCount > 0
       ? [{
-          label: `${plural(heldCount, "bill")} on hold`,
-          detail: "Finish or discard them at New Sale",
+          label: tn(heldCount, "1 bill on hold", "{n} bills on hold"),
+          detail: t("Finish or discard them at New Sale"),
           href: "/sales?status=HELD",
           tone: "amber" as const,
         }]
       : []),
     ...(expiringQuotes > 0
       ? [{
-          label: `${plural(expiringQuotes, "quotation")} expiring within 3 days`,
-          detail: "Follow up with the customer",
+          label: tn(expiringQuotes, "1 quotation expiring within 3 days", "{n} quotations expiring within 3 days"),
+          detail: t("Follow up with the customer"),
           href: "/quotations?status=OPEN",
           tone: "amber" as const,
         }]
       : []),
     ...(expiredQuotes > 0
       ? [{
-          label: `${plural(expiredQuotes, "open quotation")} already expired`,
-          detail: "Convert, extend or cancel",
+          label: tn(expiredQuotes, "1 open quotation already expired", "{n} open quotations already expired"),
+          detail: t("Convert, extend or cancel"),
           href: "/quotations?status=EXPIRED",
           tone: "amber" as const,
         }]
@@ -375,7 +381,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Welcome back, ${user.name?.split(" ")[0] ?? "there"}`}
+        title={t("Welcome back, {name}", { name: user.name?.split(" ")[0] ?? "" })}
         description={`${settings.storeName} · ${new Intl.DateTimeFormat("en-GB", {
           weekday: "long",
           day: "numeric",
@@ -387,7 +393,7 @@ export default async function DashboardPage() {
             href="/pos"
             className="inline-flex h-9 items-center rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
           >
-            Start selling
+            {t("Start selling")}
           </Link>
         }
       />
@@ -396,12 +402,12 @@ export default async function DashboardPage() {
 
       <div className="mb-4 rounded-xl border border-zinc-200 bg-white">
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
-          <h2 className="text-sm font-semibold text-zinc-900">Needs attention</h2>
-          {tasks.length > 0 && <span className="text-xs text-zinc-400">{plural(tasks.length, "item")}</span>}
+          <h2 className="text-sm font-semibold text-zinc-900">{t("Needs attention")}</h2>
+          {tasks.length > 0 && <span className="text-xs text-zinc-400">{tn(tasks.length, "1 item", "{n} items")}</span>}
         </div>
         {tasks.length === 0 ? (
           <p className="flex items-center gap-2 px-5 py-4 text-sm text-emerald-700">
-            <CheckCircle2Icon className="h-4 w-4" /> All clear. Nothing is overdue or waiting.
+            <CheckCircle2Icon className="h-4 w-4" /> {t("All clear. Nothing is overdue or waiting.")}
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100">
@@ -467,18 +473,18 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
             <h2 className="text-sm font-semibold text-zinc-900">
-              Recent Sales
+              {t("Recent Sales")}
             </h2>
             <Link
               href="/sales"
               className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900"
             >
-              View all <ArrowRightIcon className="h-3 w-3" />
+              {t("View all")} <ArrowRightIcon className="h-3 w-3" />
             </Link>
           </div>
           {recentSales.length === 0 ? (
             <div className="px-5 py-10 text-center">
-              <p className="text-sm text-zinc-400">No sales yet.</p>
+              <p className="text-sm text-zinc-400">{t("No sales yet.")}</p>
             </div>
           ) : (
             <ul className="divide-y divide-zinc-100">
@@ -511,21 +517,21 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
             <h2 className="text-sm font-semibold text-zinc-900">
-              Low Stock Alerts
+              {t("Low Stock Alerts")}
             </h2>
             {user.role !== "CASHIER" && (
               <Link
                 href="/purchases/new"
                 className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-900"
               >
-                Record purchase <ArrowRightIcon className="h-3 w-3" />
+                {t("Record purchase")} <ArrowRightIcon className="h-3 w-3" />
               </Link>
             )}
           </div>
           {lowStock.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="text-sm text-zinc-400">
-                All tracked products are above their reorder levels.
+                {t("All tracked products are above their reorder levels.")}
               </p>
             </div>
           ) : (
@@ -572,9 +578,9 @@ export default async function DashboardPage() {
             <div>
               <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
                 <BarChart3Icon className="h-4 w-4 text-zinc-500" />
-                Sales trend
+                {t("Sales trend")}
               </h2>
-              <p className="mt-1 text-xs text-zinc-400">Completed sales over the last 7 days</p>
+              <p className="mt-1 text-xs text-zinc-400">{t("Completed sales over the last 7 days")}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-400">{formatMoney(sevenDaySales.reduce((sum, sale) => sum + toNum(sale.total), 0), settings.currency)}</span>
@@ -611,19 +617,19 @@ export default async function DashboardPage() {
         <div className="rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
             <CreditCardIcon className="h-4 w-4 text-zinc-500" />
-            Payment methods
+            {t("Payment methods")}
           </h2>
-          <p className="mt-1 text-xs text-zinc-400">This month</p>
+          <p className="mt-1 text-xs text-zinc-400">{t("This month")}</p>
           {paymentSales.length === 0 ? (
-            <p className="mt-8 text-center text-sm text-zinc-400">No payments yet.</p>
+            <p className="mt-8 text-center text-sm text-zinc-400">{t("No payments yet.")}</p>
           ) : (
             <ul className="mt-4 divide-y divide-zinc-100">
               {paymentSales.map((payment) => (
                 <li key={payment.paymentMethod} className="flex items-center justify-between py-3 text-sm">
-                  <span className="text-zinc-600">{PAYMENT_LABELS[payment.paymentMethod] ?? payment.paymentMethod}</span>
+                  <span className="text-zinc-600">{t(PAYMENT_LABELS[payment.paymentMethod] ?? payment.paymentMethod)}</span>
                   <span className="text-right">
                     <span className="block font-semibold text-zinc-900">{formatMoney(toNum(payment._sum.total), settings.currency)}</span>
-                    <span className="text-xs text-zinc-400">{payment._count} transaction{payment._count === 1 ? "" : "s"}</span>
+                    <span className="text-xs text-zinc-400">{tn(payment._count, "1 transaction", "{n} transactions")}</span>
                   </span>
                 </li>
               ))}

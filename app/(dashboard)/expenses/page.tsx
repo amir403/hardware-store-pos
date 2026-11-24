@@ -14,6 +14,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { ExpenseForm } from "@/app/components/expenses/expense-form";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { Drawer } from "@/app/components/drawer";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Expenses" };
 
@@ -39,7 +40,7 @@ export default async function ExpensesPage({
 }: {
   searchParams: Promise<{ month?: string; cat?: string; pay?: string; new?: string; edit?: string }>;
 }) {
-  const [user, settings, params] = await Promise.all([getCurrentUser(), getSettings(), searchParams]);
+  const [user, settings, params, t] = await Promise.all([getCurrentUser(), getSettings(), searchParams, getT()]);
   const currency = settings.currency;
 
   const now = new Date();
@@ -97,27 +98,27 @@ export default async function ExpensesPage({
 
   const stats = [
     {
-      label: isCurrentMonth ? "Spent this month" : `Spent in ${monthLabel}`,
+      label: isCurrentMonth ? t("Spent this month") : t("Spent in {month}", { month: monthLabel }),
       value: formatMoney(total, currency),
       tone: "text-zinc-900",
       sub:
         lastTotal === 0 && total === 0
-          ? "Nothing recorded"
-          : `${change > 0 ? "+" : change < 0 ? "−" : ""}${formatMoney(Math.abs(change), currency)} vs ${new Intl.DateTimeFormat("en-GB", { month: "long" }).format(prevMonth)}`,
+          ? t("Nothing recorded")
+          : `${change > 0 ? "+" : change < 0 ? "−" : ""}${formatMoney(Math.abs(change), currency)} ${t("vs")} ${new Intl.DateTimeFormat("en-GB", { month: "long" }).format(prevMonth)}`,
       link: null,
     },
     {
-      label: "Taken from the drawer",
+      label: t("Taken from the drawer"),
       value: formatMoney(cashTotal, currency),
       tone: cashTotal > 0 ? "text-amber-700" : "text-zinc-900",
-      sub: "Lowers expected cash in the register",
+      sub: t("Lowers expected cash in the register"),
       link: href({ pay: pay === "CASH" ? "" : "CASH" }),
     },
     {
-      label: "Paid outside the drawer",
+      label: t("Paid outside the drawer"),
       value: formatMoney(round2(total - cashTotal), currency),
       tone: "text-zinc-900",
-      sub: "Bank, card, mobile or other",
+      sub: t("Bank, card, mobile or other"),
       link: null,
     },
   ];
@@ -130,15 +131,15 @@ export default async function ExpensesPage({
   return (
     <>
       <PageHeader
-        title="Expenses"
-        description="Rent, salaries, bills and other shop running costs"
+        title={t("Expenses")}
+        description={t("Rent, salaries, bills and other shop running costs")}
         actions={
           <Link
             href={href({ new: "1" })}
             scroll={false}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
           >
-            <PlusIcon className="h-4 w-4" /> New expense
+            <PlusIcon className="h-4 w-4" /> {t("New expense")}
           </Link>
         }
       />
@@ -146,7 +147,7 @@ export default async function ExpensesPage({
       <div className="mb-4 flex items-center gap-1">
         <Link
           href={href({ month: monthParam(prevMonth) })}
-          title="Previous month"
+          title={t("Previous month")}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
         >
           <ChevronLeftIcon className="h-4 w-4" />
@@ -159,7 +160,7 @@ export default async function ExpensesPage({
         ) : (
           <Link
             href={href({ month: monthParam(monthEnd) })}
-            title="Next month"
+            title={t("Next month")}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
           >
             <ChevronRightIcon className="h-4 w-4" />
@@ -167,7 +168,7 @@ export default async function ExpensesPage({
         )}
         {!isCurrentMonth && (
           <Link href={href({ month: "" })} className="ml-2 text-sm text-brand-700 hover:underline">
-            This month
+            {t("This month")}
           </Link>
         )}
       </div>
@@ -200,11 +201,11 @@ export default async function ExpensesPage({
       {categories.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2">
           <Link href={href({ cat: "" })} className={chip(!cat)}>
-            All categories
+            {t("All categories")}
           </Link>
           {categories.map(([category, amount]) => (
             <Link key={category} href={href({ cat: cat === category ? "" : category })} className={chip(cat === category)}>
-              {EXPENSE_LABELS[category]}
+              {t(EXPENSE_LABELS[category])}
               <span className={`tabular-nums ${cat === category ? "text-white/80" : "text-zinc-400"}`}>
                 {formatMoney(amount, currency)}
               </span>
@@ -214,14 +215,14 @@ export default async function ExpensesPage({
       )}
 
       <div className="mb-3 flex flex-wrap items-center gap-1 text-sm">
-        <span className="mr-1 text-zinc-500">Paid by:</span>
+        <span className="mr-1 text-zinc-500">{t("Paid by")}:</span>
         {["", ...Object.keys(METHOD_LABELS)].map((key) => (
           <Link
             key={key || "all"}
             href={href({ pay: key })}
             className={`rounded-md px-2.5 py-1 transition ${pay === key ? "bg-zinc-900 font-medium text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
           >
-            {key ? METHOD_LABELS[key] : "Any"}
+            {key ? t(METHOD_LABELS[key]) : t("Any")}
           </Link>
         ))}
       </div>
@@ -230,10 +231,10 @@ export default async function ExpensesPage({
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Paid by</th>
-              <th className="px-4 py-3 text-right font-medium">Amount</th>
+              <th className="px-4 py-3 font-medium">{t("Date")}</th>
+              <th className="px-4 py-3 font-medium">{t("Category")}</th>
+              <th className="px-4 py-3 font-medium">{t("Paid by")}</th>
+              <th className="px-4 py-3 text-right font-medium">{t("Amount")}</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -241,7 +242,7 @@ export default async function ExpensesPage({
             {shown.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-sm text-zinc-400">
-                  {expenses.length === 0 ? `No expenses recorded in ${monthLabel}.` : "No expenses match these filters."}
+                  {expenses.length === 0 ? t("No expenses recorded in {month}.", { month: monthLabel }) : t("No expenses match these filters.")}
                 </td>
               </tr>
             )}
@@ -249,7 +250,7 @@ export default async function ExpensesPage({
               <tr key={expense.id} className={editing?.id === expense.id ? "bg-brand-50/60" : "hover:bg-zinc-50"}>
                 <td className="whitespace-nowrap px-4 py-3 text-zinc-500">{formatDate(expense.spentAt)}</td>
                 <td className="px-4 py-3">
-                  <p className="font-medium text-zinc-900">{EXPENSE_LABELS[expense.category]}</p>
+                  <p className="font-medium text-zinc-900">{t(EXPENSE_LABELS[expense.category])}</p>
                   <p className="text-xs text-zinc-400">
                     {expense.note ? `${expense.note} · ` : ""}
                     {expense.user.name}
@@ -258,10 +259,10 @@ export default async function ExpensesPage({
                 <td className="px-4 py-3">
                   {expense.method === "CASH" ? (
                     <span className="whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
-                      Cash · drawer
+                      {t("Cash · drawer")}
                     </span>
                   ) : (
-                    <span className="text-zinc-600">{METHOD_LABELS[expense.method] ?? expense.method}</span>
+                    <span className="text-zinc-600">{t(METHOD_LABELS[expense.method] ?? expense.method)}</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums text-zinc-900">
@@ -273,7 +274,7 @@ export default async function ExpensesPage({
                       <Link
                         href={href({ edit: expense.id })}
                         scroll={false}
-                        title="Edit expense"
+                        title={t("Edit expense")}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900"
                       >
                         <PencilIcon className="h-4 w-4" />
@@ -288,7 +289,7 @@ export default async function ExpensesPage({
                         <input type="hidden" name="id" value={expense.id} />
                         <button
                           type="submit"
-                          title="Remove expense"
+                          title={t("Remove expense")}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2Icon className="h-4 w-4" />
@@ -304,7 +305,7 @@ export default async function ExpensesPage({
             <tfoot>
               <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold text-zinc-900">
                 <td colSpan={3} className="px-4 py-3">
-                  {shown.length} expenses
+                  {t("{n} expenses", { n: shown.length })}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">{formatMoney(sum(shown), currency)}</td>
                 <td />
@@ -315,7 +316,7 @@ export default async function ExpensesPage({
       </div>
 
       {(params.new || editing) && (
-        <Drawer title={editing ? "Edit expense" : "New expense"} closeHref={listHref}>
+        <Drawer title={editing ? t("Edit expense") : t("New expense")} closeHref={listHref}>
           <ExpenseForm
             key={editing?.id ?? "new"}
             today={isoDay(now)}

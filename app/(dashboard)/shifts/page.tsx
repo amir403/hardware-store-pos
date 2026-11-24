@@ -5,11 +5,13 @@ import { getCashBreakdown, getOpenShift } from "@/app/lib/shifts";
 import { PageHeader } from "@/app/components/page-header";
 import { CloseShiftForm, OpenShiftForm } from "@/app/components/shifts/shift-forms";
 import { StaleShiftNotice } from "@/app/components/shifts/stale-shift-notice";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Cash register" };
 
 export default async function ShiftsPage() {
-  const [settings, openShift, history] = await Promise.all([
+  const [t, settings, openShift, history] = await Promise.all([
+    getT(),
     getSettings(),
     getOpenShift(),
     prisma.shift.findMany({
@@ -27,22 +29,22 @@ export default async function ShiftsPage() {
 
   const rows: { label: string; amount: number; sign: "" | "+" | "−" }[] = cash
     ? [
-        { label: "Opening float", amount: cash.openingFloat, sign: "" },
-        { label: "Cash sales", amount: cash.cashSales, sign: "+" },
-        { label: "Cash received on accounts", amount: cash.cashCollections, sign: "+" },
-        { label: "Cash refunds on returns", amount: cash.cashRefunds, sign: "−" },
-        { label: "Cash expenses", amount: cash.cashExpenses, sign: "−" },
+        { label: t("Opening float"), amount: cash.openingFloat, sign: "" },
+        { label: t("Cash sales"), amount: cash.cashSales, sign: "+" },
+        { label: t("Cash received on accounts"), amount: cash.cashCollections, sign: "+" },
+        { label: t("Cash refunds on returns"), amount: cash.cashRefunds, sign: "−" },
+        { label: t("Cash expenses"), amount: cash.cashExpenses, sign: "−" },
       ]
     : [];
 
   return (
     <>
       <PageHeader
-        title="Cash register"
+        title={t("Cash register")}
         description={
           openShift
-            ? `Shift open since ${formatDateTime(openShift.openedAt)} · ${openShift.openedBy.name ?? "—"}`
-            : "No shift is open"
+            ? `${t("Shift open since")} ${formatDateTime(openShift.openedAt)} · ${openShift.openedBy.name ?? "—"}`
+            : t("No shift is open")
         }
       />
 
@@ -54,11 +56,10 @@ export default async function ShiftsPage() {
             <div className="rounded-xl border border-zinc-200 bg-white">
               <div className="border-b border-zinc-100 px-5 py-4">
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  Expected in the drawer
+                  {t("Expected in the drawer")}
                 </h2>
                 <p className="text-xs text-zinc-400">
-                  Card, bank and mobile payments are not counted — they never
-                  reach the drawer.
+                  {t("Card, bank and mobile payments are not counted — they never reach the drawer.")}
                 </p>
               </div>
               <dl className="divide-y divide-zinc-100 text-sm">
@@ -71,7 +72,7 @@ export default async function ShiftsPage() {
                   </div>
                 ))}
                 <div className="flex justify-between bg-zinc-50 px-5 py-3 text-base font-semibold text-zinc-900">
-                  <dt>Expected cash</dt>
+                  <dt>{t("Expected cash")}</dt>
                   <dd className={`tabular-nums ${cash.expected < 0 ? "text-red-700" : ""}`}>
                     {formatMoney(cash.expected, currency)}
                   </dd>
@@ -79,8 +80,7 @@ export default async function ShiftsPage() {
               </dl>
               {cash.expected < 0 && (
                 <p className="border-t border-zinc-100 px-5 py-3 text-xs text-red-700">
-                  A drawer cannot hold less than nothing. Usually a cash expense was paid from outside the drawer (record
-                  it as paid by bank or owner instead), or a payment was entered as cash by mistake.
+                  {t("A drawer cannot hold less than nothing. Usually a cash expense was paid from outside the drawer (record it as paid by bank or owner instead), or a payment was entered as cash by mistake.")}
                 </p>
               )}
             </div>
@@ -89,23 +89,23 @@ export default async function ShiftsPage() {
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             <div className="border-b border-zinc-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-zinc-900">
-                Past shifts
+                {t("Past shifts")}
               </h2>
             </div>
             <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                  <th className="px-4 py-2.5 font-medium">Shift</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Expected</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Counted</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Difference</th>
+                  <th className="px-4 py-2.5 font-medium">{t("Shift")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Expected")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Counted")}</th>
+                  <th className="px-4 py-2.5 text-right font-medium">{t("Difference")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {history.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center text-sm text-zinc-400">
-                      No closed shifts yet.
+                      {t("No closed shifts yet.")}
                     </td>
                   </tr>
                 )}
@@ -123,7 +123,7 @@ export default async function ShiftsPage() {
                         <p className="text-xs text-zinc-400">
                           {shift.openedBy.name ?? "—"}
                           {shift.closedBy && shift.closedBy.name !== shift.openedBy.name
-                            ? ` · closed by ${shift.closedBy.name}`
+                            ? ` · ${t("closed by")} ${shift.closedBy.name}`
                             : ""}
                           {shift.note ? ` · ${shift.note}` : ""}
                         </p>
@@ -144,7 +144,7 @@ export default async function ShiftsPage() {
                         }`}
                       >
                         {variance === 0
-                          ? "Balanced"
+                          ? t("Balanced")
                           : `${variance > 0 ? "+" : "−"}${formatMoney(Math.abs(variance), currency)}`}
                       </td>
                     </tr>
@@ -157,7 +157,7 @@ export default async function ShiftsPage() {
 
         <div className="h-fit rounded-xl border border-zinc-200 bg-white p-6">
           <h2 className="mb-4 text-sm font-semibold text-zinc-900">
-            {openShift ? "Close shift" : "Open shift"}
+            {openShift ? t("Close shift") : t("Open shift")}
           </h2>
           {openShift && cash ? (
             <CloseShiftForm

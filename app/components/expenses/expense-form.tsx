@@ -8,6 +8,7 @@ import {
   type ExpenseResult,
 } from "@/app/actions/expenses";
 import { SubmitButton } from "@/app/components/submit-button";
+import { useT } from "@/app/components/lang";
 import { useToast } from "@/app/components/toast";
 import { EXPENSE_CATEGORIES, EXPENSE_LABELS } from "@/app/lib/expense-categories";
 
@@ -38,6 +39,7 @@ export function ExpenseForm({
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const toast = useToast();
+  const t = useT();
   const router = useRouter();
 
   async function submit(
@@ -49,7 +51,7 @@ export function ExpenseForm({
       : await createExpenseAction(previous, formData);
     if ("ok" in result) {
       formRef.current?.reset();
-      toast(expense ? "Expense updated" : "Expense recorded");
+      toast(expense ? t("Expense updated") : t("Expense recorded"));
       if (doneHref) router.replace(doneHref, { scroll: false });
     }
     return result;
@@ -72,7 +74,7 @@ export function ExpenseForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="expense-category" className={labelClass}>
-          Category *
+          {t("Category")} *
         </label>
         <select
           id="expense-category"
@@ -82,7 +84,7 @@ export function ExpenseForm({
         >
           {EXPENSE_CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {EXPENSE_LABELS[c]}
+              {t(EXPENSE_LABELS[c])}
             </option>
           ))}
         </select>
@@ -90,7 +92,7 @@ export function ExpenseForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="expense-amount" className={labelClass}>
-          Amount *
+          {t("Amount *")}
         </label>
         <input
           id="expense-amount"
@@ -109,7 +111,7 @@ export function ExpenseForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="expense-method" className={labelClass}>
-            Paid by
+            {t("Paid by")}
           </label>
           <select
             id="expense-method"
@@ -117,16 +119,16 @@ export function ExpenseForm({
             defaultValue={expense?.method ?? "CASH"}
             className={inputClass}
           >
-            <option value="CASH">Cash (drawer)</option>
-            <option value="CARD">Card</option>
-            <option value="BANK_TRANSFER">Bank transfer</option>
-            <option value="MOBILE">Mobile</option>
-            <option value="OTHER">Other</option>
+            <option value="CASH">{t("Cash (drawer)")}</option>
+            <option value="CARD">{t("Card")}</option>
+            <option value="BANK_TRANSFER">{t("Bank transfer")}</option>
+            <option value="MOBILE">{t("Mobile")}</option>
+            <option value="OTHER">{t("Other")}</option>
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="expense-date" className={labelClass}>
-            Date
+            {t("Date")}
           </label>
           <input
             id="expense-date"
@@ -141,24 +143,23 @@ export function ExpenseForm({
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="expense-note" className={labelClass}>
-          Note
+          {t("Note")}
         </label>
         <input
           id="expense-note"
           name="note"
           maxLength={300}
           defaultValue={expense?.note ?? ""}
-          placeholder="e.g. October electricity bill"
+          placeholder={t("e.g. October electricity bill")}
           className={inputClass}
         />
       </div>
 
       <p className="text-xs text-zinc-400">
-        Cash expenses are taken out of the drawer and lower the shift&apos;s
-        expected cash.
+        {t("Cash expenses are taken out of the drawer and lower the shift's expected cash.")}
       </p>
 
-      <SubmitButton>{expense ? "Save changes" : "Record expense"}</SubmitButton>
+      <SubmitButton>{expense ? t("Save changes") : t("Record expense")}</SubmitButton>
     </form>
   );
 }

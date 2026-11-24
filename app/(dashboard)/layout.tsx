@@ -8,6 +8,8 @@ import { SidebarShell } from "@/app/components/sidebar-shell";
 import { ToastProvider } from "@/app/components/toast";
 import { LangProvider, LangToggle } from "@/app/components/lang";
 import { getLang, getT } from "@/app/lib/i18n-server";
+import { getLicense } from "@/app/lib/license-server";
+import { LicenseNotice } from "@/app/components/license-notice";
 
 export default async function DashboardLayout({
   children,
@@ -22,7 +24,7 @@ export default async function DashboardLayout({
 
   // Grouped by the job at hand so the menu reads as four short lists rather
   // than one long one. Entries a role cannot open are left out entirely.
-  const [lang, t] = await Promise.all([getLang(), getT()]);
+  const [lang, t, license] = await Promise.all([getLang(), getT(), getLicense()]);
 
   const navEntries: NavItem[] = [
     { href: "/", label: "Dashboard", icon: "dashboard" },
@@ -133,7 +135,10 @@ export default async function DashboardLayout({
                 }}
               />
 
-              <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 print:p-0">{children}</main>
+              <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 print:p-0">
+                <LicenseNotice state={license} isAdmin={isAdmin} />
+                {children}
+              </main>
             </div>
           </div>
         </ToastProvider>

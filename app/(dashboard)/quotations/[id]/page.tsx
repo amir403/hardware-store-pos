@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
+import { translate } from "@/app/lib/i18n";
 import { formatDate, formatDateTime, formatMoney, formatQty, toNum } from "@/app/lib/format";
 import { cancelQuotationAction } from "@/app/actions/quotations";
 import { PrintButton } from "@/app/components/print-button";
@@ -37,6 +38,11 @@ export default async function QuotationDetailPage({
   if (!quote) notFound();
 
   const currency = settings.currency;
+  // Printed for the customer, so it follows the shop's receipt language.
+  const rt = (text: string, vars?: Record<string, string | number>) => translate(settings.receiptLang, text, vars);
+  const estimate = rt("This is an estimate, not a bill. Prices are held until {date} and stock is subject to availability.", {
+    date: quote.validUntil ? formatDate(quote.validUntil) : rt("further notice"),
+  });
   const expired =
     quote.status === "OPEN" && quote.validUntil !== null && quote.validUntil < new Date();
   const isOpen = quote.status === "OPEN";
@@ -130,32 +136,32 @@ export default async function QuotationDetailPage({
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-b border-dashed border-zinc-200 py-4 text-xs">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Quotation</span>
+              <span className="text-zinc-500">{rt("Quotation")}</span>
               <span className="font-semibold text-zinc-900">{quote.quoteNo}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Date</span>
+              <span className="text-zinc-500">{rt("Date")}</span>
               <span className="text-zinc-900">{formatDateTime(quote.createdAt)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">For</span>
+              <span className="text-zinc-500">{rt("For")}</span>
               <span className="text-zinc-900">
                 {quote.customer?.name ?? quote.customerName ?? "Walk-in"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Valid until</span>
+              <span className="text-zinc-500">{rt("Valid until")}</span>
               <span className="text-zinc-900">
                 {quote.validUntil ? formatDate(quote.validUntil) : "—"}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">Prepared by</span>
+              <span className="text-zinc-500">{rt("Prepared by")}</span>
               <span className="text-zinc-900">{quote.user.name ?? "—"}</span>
             </div>
             {quote.customer?.phone && (
               <div className="flex justify-between">
-                <span className="text-zinc-500">Phone</span>
+                <span className="text-zinc-500">{rt("Phone")}</span>
                 <span className="text-zinc-900">{quote.customer.phone}</span>
               </div>
             )}
@@ -164,10 +170,10 @@ export default async function QuotationDetailPage({
           <table className="w-full py-2 text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
-                <th className="py-2 text-left font-medium">Item</th>
-                <th className="py-2 text-right font-medium">Qty</th>
-                <th className="py-2 text-right font-medium">Price</th>
-                <th className="py-2 text-right font-medium">Total</th>
+                <th className="py-2 text-left font-medium">{rt("Item")}</th>
+                <th className="py-2 text-right font-medium">{rt("Qty")}</th>
+                <th className="py-2 text-right font-medium">{rt("Price")}</th>
+                <th className="py-2 text-right font-medium">{rt("Total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -195,12 +201,12 @@ export default async function QuotationDetailPage({
 
           <div className="mt-4 ml-auto w-64 space-y-1 text-sm">
             <div className="flex justify-between text-zinc-500">
-              <span>Subtotal</span>
+              <span>{rt("Subtotal")}</span>
               <span>{formatMoney(toNum(quote.subtotal), currency)}</span>
             </div>
             {toNum(quote.discountAmount) > 0 && (
               <div className="flex justify-between text-zinc-500">
-                <span>Discount</span>
+                <span>{rt("Discount")}</span>
                 <span>−{formatMoney(toNum(quote.discountAmount), currency)}</span>
               </div>
             )}
@@ -211,7 +217,7 @@ export default async function QuotationDetailPage({
               </div>
             )}
             <div className="flex justify-between border-t border-zinc-200 pt-1.5 text-base font-bold text-zinc-900">
-              <span>Total</span>
+              <span>{rt("Total")}</span>
               <span>{formatMoney(toNum(quote.total), currency)}</span>
             </div>
           </div>
@@ -223,9 +229,7 @@ export default async function QuotationDetailPage({
           )}
 
           <p className="mt-4 text-center text-xs text-zinc-500">
-            This is an estimate, not a bill. Prices are held until{" "}
-            {quote.validUntil ? formatDate(quote.validUntil) : "further notice"} and
-            stock is subject to availability.
+            {estimate}
           </p>
         </div>
       </div>
@@ -238,13 +242,13 @@ export default async function QuotationDetailPage({
             address: settings.address,
             phone: settings.phone,
           }}
-          title="Quotation"
+          title={rt("Quotation")}
           meta={[
-            { label: "Quotation", value: quote.quoteNo },
-            { label: "Date", value: formatDateTime(quote.createdAt) },
-            { label: "For", value: quote.customer?.name ?? quote.customerName ?? "Walk-in" },
-            { label: "Valid until", value: quote.validUntil ? formatDate(quote.validUntil) : "—" },
-            { label: "Prepared by", value: quote.user.name ?? "—" },
+            { label: rt("Quotation"), value: quote.quoteNo },
+            { label: rt("Date"), value: formatDateTime(quote.createdAt) },
+            { label: rt("For"), value: quote.customer?.name ?? quote.customerName ?? rt("Walk-in") },
+            { label: rt("Valid until"), value: quote.validUntil ? formatDate(quote.validUntil) : "—" },
+            { label: rt("Prepared by"), value: quote.user.name ?? "—" },
           ]}
           lines={quote.items.map((item) => ({
             name: item.productName,
@@ -257,23 +261,21 @@ export default async function QuotationDetailPage({
                 : undefined,
           }))}
           totals={[
-            { label: "Subtotal", value: formatMoney(toNum(quote.subtotal), currency) },
+            { label: rt("Subtotal"), value: formatMoney(toNum(quote.subtotal), currency) },
             ...(toNum(quote.discountAmount) > 0
-              ? [{ label: "Discount", value: `−${formatMoney(toNum(quote.discountAmount), currency)}` }]
+              ? [{ label: rt("Discount"), value: `−${formatMoney(toNum(quote.discountAmount), currency)}` }]
               : []),
             ...(toNum(quote.taxAmount) > 0
               ? [{
-                  label: `Tax${settings.pricesIncludeTax ? " (incl.)" : ""}`,
+                  label: `${rt("Tax")}${settings.pricesIncludeTax ? " (incl.)" : ""}`,
                   value: formatMoney(toNum(quote.taxAmount), currency),
                 }]
               : []),
-            { label: "TOTAL", value: formatMoney(toNum(quote.total), currency), strong: true },
+            { label: rt("Total").toUpperCase(), value: formatMoney(toNum(quote.total), currency), strong: true },
           ]}
           notices={[
-            ...(quote.note ? [`Note: ${quote.note}`] : []),
-            "This is an estimate, not a bill. Prices are held until " +
-              (quote.validUntil ? formatDate(quote.validUntil) : "further notice") +
-              " and stock is subject to availability.",
+            ...(quote.note ? [`${rt("Note")}: ${quote.note}`] : []),
+            estimate,
           ]}
           barcode={quote.quoteNo}
         />

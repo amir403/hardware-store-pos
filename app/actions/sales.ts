@@ -6,6 +6,7 @@ import { prisma } from "@/app/lib/prisma";
 import { Prisma } from "@/app/generated/prisma/client";
 import { getActionUser, hasRole } from "@/app/lib/auth";
 import { getSettings } from "@/app/lib/settings";
+import { getLicense } from "@/app/lib/license-server";
 import { recordAudit } from "@/app/lib/audit";
 import { getT } from "@/app/lib/i18n-server";
 import {
@@ -91,6 +92,12 @@ export async function createSaleAction(
 
   const data = parsed.data;
   const settings = await getSettings();
+
+  const license = await getLicense();
+  if (!license.canSell) {
+    const t = await getT();
+    return { error: t("New bills are stopped: the licence has expired or the trial has ended. Ask the admin to enter a licence key in Settings.") };
+  }
 
   // Max 3 attempts in case of invoice-number collision.
   for (let attempt = 0; attempt < 3; attempt++) {

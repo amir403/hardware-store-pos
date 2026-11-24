@@ -5,6 +5,7 @@ import { prisma } from "@/app/lib/prisma";
 import { getSettings } from "@/app/lib/settings";
 import { formatMoney, formatDateTime, isoDay, round2, toNum, PAYMENT_LABELS } from "@/app/lib/format";
 import { PageHeader } from "@/app/components/page-header";
+import { getT } from "@/app/lib/i18n-server";
 
 export const metadata = { title: "Sales" };
 
@@ -47,7 +48,7 @@ export default async function SalesPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; from?: string; to?: string; pay?: string; page?: string }>;
 }) {
-  const [settings, params] = await Promise.all([getSettings(), searchParams]);
+  const [settings, params, t] = await Promise.all([getSettings(), searchParams, getT()]);
 
   const q = params.q?.trim() ?? "";
   // Ignore anything that is not a real status so the query stays parameterised.
@@ -135,15 +136,15 @@ export default async function SalesPage({
   return (
     <>
       <PageHeader
-        title="Sales"
-        description={`${count} bill${count === 1 ? "" : "s"}${rangeLabel && from ? ` · ${rangeLabel.toLowerCase()}` : from || to ? ` · ${from || "start"} to ${to || "today"}` : ""}`}
+        title={t("Sales")}
+        description={`${t(count === 1 ? "1 bill" : "{n} bills", { n: count })}${rangeLabel && from ? ` · ${t(rangeLabel)}` : from || to ? ` · ${from || t("start")} – ${to || t("today")}` : ""}`}
         actions={
           // Plain anchor, not Link: a download must be a real navigation.
           <a
             href={`/api/export/sales${exportQuery ? `?${exportQuery}` : ""}`}
             download
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
-            title="Download this list as CSV"
+            title={t("Download this list as CSV")}
           >
             <DownloadIcon className="h-4 w-4" />
             CSV
@@ -164,7 +165,7 @@ export default async function SalesPage({
                   active ? "bg-brand-700 font-medium text-white" : "text-zinc-600 hover:bg-zinc-100"
                 }`}
               >
-                {range.label}
+                {t(range.label)}
               </Link>
             );
           })}
@@ -194,7 +195,7 @@ export default async function SalesPage({
             type="submit"
             className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Apply
+            {t("Apply")}
           </button>
         </form>
       </div>
@@ -202,21 +203,21 @@ export default async function SalesPage({
       {showTotals && (
         <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <p className="text-xs font-medium text-zinc-500">Sales</p>
+            <p className="text-xs font-medium text-zinc-500">{t("Sales")}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{formatMoney(revenue, settings.currency)}</p>
-            <p className="text-xs text-zinc-400">Completed bills, before returns</p>
+            <p className="text-xs text-zinc-400">{t("Completed bills, before returns")}</p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
-            <p className="text-xs font-medium text-zinc-500">Bills</p>
+            <p className="text-xs font-medium text-zinc-500">{t("Bills")}</p>
             <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{bills}</p>
             <p className="text-xs text-zinc-400">
-              Average {formatMoney(bills ? round2(revenue / bills) : 0, settings.currency)}
+              {t("Average")} {formatMoney(bills ? round2(revenue / bills) : 0, settings.currency)}
             </p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 lg:col-span-2">
-            <p className="text-xs font-medium text-zinc-500">By payment</p>
+            <p className="text-xs font-medium text-zinc-500">{t("By payment")}</p>
             {byPayment.length === 0 ? (
-              <p className="mt-1 text-sm text-zinc-400">No completed bills in this view.</p>
+              <p className="mt-1 text-sm text-zinc-400">{t("No completed bills in this view.")}</p>
             ) : (
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {byPayment
@@ -232,7 +233,7 @@ export default async function SalesPage({
                           : "border-zinc-200 text-zinc-700 hover:border-zinc-300"
                       }`}
                     >
-                      {PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod}{" "}
+                      {t(PAYMENT_LABELS[row.paymentMethod] ?? row.paymentMethod)}{" "}
                       <span className="font-semibold tabular-nums">{formatMoney(toNum(row._sum.total), settings.currency)}</span>
                     </Link>
                   ))}
@@ -254,16 +255,16 @@ export default async function SalesPage({
                   : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
               }`}
             >
-              {tab.label}
+              {t(tab.label)}
             </Link>
           ))}
           {pay && (
             <Link
               href={href({ pay: "" })}
               className="ml-1 inline-flex h-8 items-center gap-1 rounded-lg border border-brand-600 bg-brand-50 px-3 text-sm text-brand-900"
-              title="Show every payment type"
+              title={t("Show every payment type")}
             >
-              {PAYMENT_LABELS[pay]} only ×
+              {t(PAYMENT_LABELS[pay])} ×
             </Link>
           )}
         </div>
@@ -275,7 +276,7 @@ export default async function SalesPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search by invoice no or customer…"
+            placeholder={t("Search by invoice no or customer…")}
             className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15"
           />
         </form>
@@ -285,20 +286,20 @@ export default async function SalesPage({
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-              <th className="px-4 py-3 font-medium">Invoice</th>
-              <th className="px-4 py-3 font-medium">Date</th>
-              <th className="px-4 py-3 font-medium">Customer</th>
-              <th className="px-4 py-3 font-medium">Cashier</th>
-              <th className="px-4 py-3 font-medium">Payment</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
+              <th className="px-4 py-3 font-medium">{t("Invoice")}</th>
+              <th className="px-4 py-3 font-medium">{t("Date")}</th>
+              <th className="px-4 py-3 font-medium">{t("Customer")}</th>
+              <th className="px-4 py-3 font-medium">{t("Cashier")}</th>
+              <th className="px-4 py-3 font-medium">{t("Payment")}</th>
+              <th className="px-4 py-3 font-medium">{t("Status")}</th>
+              <th className="px-4 py-3 text-right font-medium">{t("Total")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {sales.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-sm text-zinc-400">
-                  No sales in this view.
+                  {t("No sales in this view.")}
                 </td>
               </tr>
             )}
@@ -313,16 +314,16 @@ export default async function SalesPage({
                     {sale.invoiceNo}
                   </Link>
                   <span className="block text-xs text-zinc-400">
-                    {sale._count.items} item{sale._count.items === 1 ? "" : "s"}
+                    {t(sale._count.items === 1 ? "1 item" : "{n} items", { n: sale._count.items })}
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-zinc-600">{formatDateTime(sale.createdAt)}</td>
                 <td className="px-4 py-3 text-zinc-700">
-                  {sale.customer?.name ?? <span className="text-zinc-400">Walk-in</span>}
+                  {sale.customer?.name ?? <span className="text-zinc-400">{t("Walk-in")}</span>}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-zinc-600">{sale.user.name ?? "—"}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-zinc-600">
-                  {PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod}
+                  {t(PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod)}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -330,7 +331,7 @@ export default async function SalesPage({
                       STATUS_STYLES[sale.status] ?? "bg-zinc-100 text-zinc-600"
                     }`}
                   >
-                    {STATUS_LABELS[sale.status] ?? sale.status}
+                    {t(STATUS_LABELS[sale.status] ?? sale.status)}
                   </span>
                 </td>
                 <td
@@ -348,7 +349,7 @@ export default async function SalesPage({
         {count > 0 && (
           <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2.5 text-sm text-zinc-500">
             <span>
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)} of {count}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, count)} / {count}
             </span>
             <span className="flex items-center gap-1">
               {page > 1 ? (
@@ -359,7 +360,7 @@ export default async function SalesPage({
                 <span className="grid h-8 w-8 place-items-center text-zinc-300"><ChevronLeftIcon className="h-4 w-4" /></span>
               )}
               <span className="px-1">
-                Page {Math.min(page, pages)} of {pages}
+                {t("Page {page} of {pages}", { page: Math.min(page, pages), pages })}
               </span>
               {page < pages ? (
                 <Link href={href({ page: String(page + 1) })} aria-label="Next page" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-zinc-100">

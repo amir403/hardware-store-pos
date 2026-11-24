@@ -35,6 +35,10 @@ A new shop is installed with `scripts/install.ps1` (writes `.env`, creates the d
 
 Updates on a shop computer go through `scripts/update.ps1` (backup first, `git pull --ff-only`, `npm ci`, migrate, build with the previous `.next` kept as `.next-previous` and restored if the build fails). `backup-db.ps1` writes `logs/backup-status.json`; `app/lib/backup.ts` reads it for Settings → Backups and the dashboard attention list, and `app/actions/backup.ts` runs the backup task on demand (admin only).
 
+Licences (`app/lib/license.ts`): offline Ed25519-signed keys bound to a machine code (hash of the Windows MachineGuid), stored in `Settings.licenseKey`, issued with `scripts/license.ts` (the private key lives in `%USERPROFILE%\.hardware-pos-license`, never in the repo). `getLicense()` (`license-server.ts`) is checked in `createSaleAction` only — expiry stops new bills, nothing else; dev builds are exempt; a fresh install gets a 14-day trial from the first user's creation.
+
+Language: screens follow each device's `lang` cookie (`getT()` server, `useT()` client) and fall back to English for any string missing from `UR` in `app/lib/i18n.ts`; printed receipts and quotations follow `Settings.receiptLang` instead.
+
 `DATABASE_URL` (and optionally `SHADOW_DATABASE_URL`) come from `.env`; the datasource URL is set in `prisma.config.ts`, not in `schema.prisma`.
 
 ## Architecture

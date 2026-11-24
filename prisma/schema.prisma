@@ -630,5 +630,7 @@ model Settings {
   // Most a CASHIER may knock off a bill (line + bill discounts), as % of list value.
   cashierMaxDiscountPct Decimal  @default(10) @db.Decimal(5, 2)
   labelSize             String   @default("50x25") // A4 | 50x25 | 40x30 | 38x25 | 58x40
+  receiptLang           String   @default("en") // en | ur (Roman Urdu) — what the customer's receipt is printed in
+  licenseKey            String? // signed key from scripts/license.ts; see app/lib/license.ts
   updatedAt             DateTime @updatedAt
 }

@@ -7,6 +7,7 @@ import {
   type LabelSize,
   type ReceiptPaper,
 } from "@/app/lib/print-formats";
+import type { Lang } from "@/app/lib/i18n";
 
 export type StoreSettings = {
   storeName: string;
@@ -18,6 +19,8 @@ export type StoreSettings = {
   receiptFooter: string | null;
   receiptPaper: ReceiptPaper;
   labelSize: LabelSize;
+  /** Language of the printed receipt and quotation (Roman Urdu or English), whatever the screen shows. */
+  receiptLang: Lang;
   cashierMaxDiscountPct: number;
 };
 
@@ -37,6 +40,7 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
       receiptFooter: null,
       receiptPaper: "80mm",
       labelSize: "50x25",
+      receiptLang: "en",
       cashierMaxDiscountPct: 10,
     };
   }
@@ -51,6 +55,7 @@ export const getSettings = cache(async (): Promise<StoreSettings> => {
     receiptFooter: settings.receiptFooter,
     receiptPaper: isReceiptPaper(settings.receiptPaper) ? settings.receiptPaper : "80mm",
     labelSize: isLabelSize(settings.labelSize) ? settings.labelSize : "50x25",
+    receiptLang: settings.receiptLang === "ur" ? "ur" : "en",
     cashierMaxDiscountPct: toNum(settings.cashierMaxDiscountPct),
   };
 });

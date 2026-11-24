@@ -20,6 +20,7 @@ export const AUDIT_ACTIONS = {
   "user.create": "User created",
   "user.update": "User changed",
   "settings.update": "Settings changed",
+  "license.activate": "Licence entered",
   "expense.create": "Expense recorded",
   "expense.update": "Expense changed",
   "expense.delete": "Expense removed",

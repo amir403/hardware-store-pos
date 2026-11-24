@@ -6,6 +6,7 @@ import {
   openShiftAction,
   type ShiftResult,
 } from "@/app/actions/shifts";
+import { useT } from "@/app/components/lang";
 import { SubmitButton } from "@/app/components/submit-button";
 import { useSuccessToast } from "@/app/components/toast";
 import { formatMoney, round2 } from "@/app/lib/format";
@@ -25,8 +26,9 @@ function ErrorNote({ state }: { state: ShiftResult | null }) {
 }
 
 export function OpenShiftForm() {
+  const t = useT();
   const [state, formAction] = useActionState<ShiftResult | null, FormData>(
-    useSuccessToast<ShiftResult | null>(openShiftAction, "Shift opened — the drawer is counted in"),
+    useSuccessToast<ShiftResult | null>(openShiftAction, t("Shift opened — the drawer is counted in")),
     null
   );
 
@@ -35,7 +37,7 @@ export function OpenShiftForm() {
       <ErrorNote state={state} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="opening-float" className={labelClass}>
-          Cash in the drawer now *
+          {t("Cash in the drawer now *")}
         </label>
         <input
           id="opening-float"
@@ -48,22 +50,22 @@ export function OpenShiftForm() {
           className={inputClass}
         />
         <p className="text-xs text-zinc-400">
-          Count the change float before the first sale.
+          {t("Count the change float before the first sale.")}
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="open-note" className={labelClass}>
-          Note
+          {t("Note")}
         </label>
         <input
           id="open-note"
           name="note"
           maxLength={300}
-          placeholder="optional"
+          placeholder={t("optional")}
           className={inputClass}
         />
       </div>
-      <SubmitButton>Open shift</SubmitButton>
+      <SubmitButton>{t("Open shift")}</SubmitButton>
     </form>
   );
 }
@@ -77,9 +79,10 @@ export function CloseShiftForm({
   expected: number;
   currency: string;
 }) {
+  const t = useT();
   const [counted, setCounted] = useState("");
   const [state, formAction] = useActionState<ShiftResult | null, FormData>(
-    useSuccessToast<ShiftResult | null>(closeShiftAction, "Shift closed and counted"),
+    useSuccessToast<ShiftResult | null>(closeShiftAction, t("Shift closed and counted")),
     null
   );
 
@@ -92,7 +95,7 @@ export function CloseShiftForm({
       <ErrorNote state={state} />
       <div className="flex flex-col gap-1.5">
         <label htmlFor="counted-cash" className={labelClass}>
-          Cash counted in the drawer *
+          {t("Cash counted in the drawer *")}
         </label>
         <input
           id="counted-cash"
@@ -119,26 +122,26 @@ export function CloseShiftForm({
           }`}
         >
           {variance === 0
-            ? "Drawer balances exactly."
+            ? t("Drawer balances exactly.")
             : variance > 0
-              ? `${formatMoney(variance, currency)} over`
-              : `${formatMoney(-variance, currency)} short`}
+              ? t("{amount} over", { amount: formatMoney(variance, currency) })
+              : t("{amount} short", { amount: formatMoney(-variance, currency) })}
         </p>
       )}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="close-note" className={labelClass}>
-          Note
+          {t("Note")}
         </label>
         <input
           id="close-note"
           name="note"
           maxLength={300}
-          placeholder="e.g. 500 taken to bank"
+          placeholder={t("e.g. 500 taken to bank")}
           className={inputClass}
         />
       </div>
-      <SubmitButton>Close shift</SubmitButton>
+      <SubmitButton>{t("Close shift")}</SubmitButton>
     </form>
   );
 }
