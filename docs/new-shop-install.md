@@ -56,7 +56,10 @@ Phir:
 
 - **Settings**: receipt printer ki chaudai, label size, cashier ki discount hadd
 - **Users**: har cashier aur manager ka apna login
-- **Products**: maal daalna
+- **Products → Import**: dukaan ki purani price list Excel se ek saath. Excel mein
+  "Save As → CSV UTF-8" karein; page par template bhi download ho sakta hai.
+  Pehle preview aata hai (naye, update, ghaltiyan), "Import" dabane par hi save hota
+  hai. Opening stock naye products ka shuru ka stock ban jata hai.
 
 ## 5. Phone aur doosre computer
 

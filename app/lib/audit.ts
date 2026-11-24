@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = {
   "stock.adjust": "Stock adjusted",
   "stock.count": "Stock count applied",
   "product.price": "Price changed",
+  "product.import": "Products imported",
   "user.create": "User created",
   "user.update": "User changed",
   "settings.update": "Settings changed",

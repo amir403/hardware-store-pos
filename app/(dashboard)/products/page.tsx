@@ -153,13 +153,21 @@ export default async function ProductsPage({
         description={`${total} product${total === 1 ? "" : "s"}${q || categoryId || stockFilter ? " found" : " in catalog"}`}
         actions={
           canManage && (
-            <Link
-              href="/products/new"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
-            >
-              <PlusIcon className="h-4 w-4" />
-              Add product
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/products/import"
+                className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
+                Import
+              </Link>
+              <Link
+                href="/products/new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-4 text-sm font-medium text-white transition hover:bg-brand-800"
+              >
+                <PlusIcon className="h-4 w-4" />
+                Add product
+              </Link>
+            </div>
           )
         }
       />
