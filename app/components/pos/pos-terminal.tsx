@@ -23,7 +23,7 @@ import {
 import { createQuotationAction } from "@/app/actions/quotations";
 import { useToast } from "@/app/components/toast";
 import { CustomerPicker } from "@/app/components/pos/customer-picker";
-import { formatDateTime, formatMoney, formatQty, round2 } from "@/app/lib/format";
+import { formatDateTime, formatMoney, formatQty, round2, round3 } from "@/app/lib/format";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { useT } from "@/app/components/lang";
 import { ProductThumb } from "@/app/components/product-thumb";
@@ -119,6 +119,14 @@ const SHORTCUTS = [
   { keys: "F4", label: "complete" },
 ];
 
+/**
+ * One less, but never below 1: a line goes away with the bin button, and
+ * 0.5 m stays 0.5 m. Plain `q - 1` turned 1 into the 0.001 floor.
+ */
+function stepDown(q: number) {
+  return q > 1 ? round3(q - 1) : q;
+}
+
 const inputClass =
   "h-9 w-full rounded-lg border border-zinc-300 bg-white px-2.5 text-sm text-zinc-900 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15";
 
@@ -206,6 +214,8 @@ export function PosTerminal({
     () => initialHeld?.id ?? null
   );
   const searchRef = useRef<HTMLInputElement>(null);
+  /** Quantity text being typed, per line; cleared on blur so the box shows the real quantity. */
+  const [qtyDraft, setQtyDraft] = useState<Record<string, string>>({});
 
   /** Category cards with product counts; products without one share a last card. */
   const categories = useMemo(() => {
@@ -613,7 +623,10 @@ export function PosTerminal({
   function bumpQty(delta: number) {
     const last = cart[cart.length - 1];
     if (!last) return;
-    updateLine(last.productId, { quantity: round2(last.quantity + delta) });
+    setQtyDraft({});
+    updateLine(last.productId, {
+      quantity: delta < 0 ? stepDown(last.quantity) : round3(last.quantity + delta),
+    });
   }
 
   // Keep the latest handlers in a ref so the global listener is registered
@@ -783,12 +796,13 @@ export function PosTerminal({
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
+                            disabled={line.quantity <= 1}
                             onClick={() =>
                               updateLine(line.productId, {
-                                quantity: round2(line.quantity - 1),
+                                quantity: stepDown(line.quantity),
                               })
                             }
-                            className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <MinusIcon className="h-3 w-3" />
                           </button>
@@ -796,10 +810,19 @@ export function PosTerminal({
                             type="number"
                             min="0.001"
                             step="any"
-                            value={line.quantity}
-                            onChange={(e) =>
-                              updateLine(line.productId, {
-                                quantity: Number(e.target.value),
+                            value={qtyDraft[line.productId] ?? line.quantity}
+                            onChange={(e) => {
+                              // Keep what is typed (even an empty box) until it is a real quantity.
+                              const text = e.target.value;
+                              setQtyDraft((d) => ({ ...d, [line.productId]: text }));
+                              const n = Number(text);
+                              if (text !== "" && n > 0) updateLine(line.productId, { quantity: n });
+                            }}
+                            onBlur={() =>
+                              setQtyDraft((d) => {
+                                const rest = { ...d };
+                                delete rest[line.productId];
+                                return rest;
                               })
                             }
                             className="h-7 w-16 rounded-md border border-zinc-300 bg-white px-1.5 text-center text-sm text-zinc-900 outline-none focus:border-brand-600"
@@ -808,7 +831,7 @@ export function PosTerminal({
                             type="button"
                             onClick={() =>
                               updateLine(line.productId, {
-                                quantity: round2(line.quantity + 1),
+                                quantity: round3(line.quantity + 1),
                               })
                             }
                             className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
