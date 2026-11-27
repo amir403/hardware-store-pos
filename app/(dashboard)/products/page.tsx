@@ -12,6 +12,8 @@ import {
   ArrowDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "lucide-react";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { CategoryManager } from "@/app/components/category-manager";
@@ -361,6 +363,12 @@ export default async function ProductsPage({
                           </Link>
                           <ConfirmForm
                             action={toggleProductActiveAction}
+                            // An icon is easy to hit by mistake, so hiding a product asks first.
+                            message={
+                              product.isActive
+                                ? `Deactivate ${product.name}? It disappears from the POS until activated again.`
+                                : undefined
+                            }
                             successMessage={
                               product.isActive
                                 ? `${product.name} deactivated`
@@ -374,10 +382,15 @@ export default async function ProductsPage({
                             />
                             <button
                               type="submit"
-                              title={product.isActive ? "Deactivate" : "Activate"}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
+                              title={product.isActive ? "Deactivate (hide from the POS)" : "Activate"}
+                              aria-label={`${product.isActive ? "Deactivate" : "Activate"} ${product.name}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${
+                                product.isActive
+                                  ? "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                                  : "text-emerald-600 hover:bg-emerald-50"
+                              }`}
                             >
-                              {product.isActive ? "Deactivate" : "Activate"}
+                              {product.isActive ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                             </button>
                           </ConfirmForm>
                         </>

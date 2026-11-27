@@ -145,7 +145,8 @@ export function LabelPicker({
   const rowClick = (product: LabelProduct) => (event: MouseEvent) => toggle(product, event.shiftKey);
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    // Narrower side panel and no stock column on small laptops, so product names have room.
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section className="min-w-0 space-y-3">
         {notice && (
           <p className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-900">{notice}</p>
@@ -208,7 +209,7 @@ export function LabelPicker({
                 <th className="px-3 py-2.5">
                   Product <span className="hidden font-normal text-zinc-400 lg:inline">· shift-click ticks a range</span>
                 </th>
-                <th className="hidden px-3 py-2.5 text-right sm:table-cell">In stock</th>
+                <th className="hidden px-3 py-2.5 text-right xl:table-cell">In stock</th>
                 <th className="px-2 py-2.5 text-right sm:px-3">Price</th>
                 {/* On phones the counts are set in the Selected panel instead. */}
                 <th className="hidden w-28 py-2.5 pl-2 pr-4 text-right sm:table-cell">Labels</th>
@@ -245,10 +246,15 @@ export function LabelPicker({
                       )}
                     </td>
                     <td className="max-w-0 px-3 py-2">
-                      <span className={`line-clamp-2 font-medium sm:block sm:truncate ${product.code ? "text-zinc-900" : ""}`}>
+                      <span className={`line-clamp-2 font-medium ${product.code ? "text-zinc-900" : ""}`}>
                         {product.name}
                       </span>
                       <span className="block truncate text-xs text-zinc-400">
+                        {product.trackStock && (
+                          <span className="xl:hidden">
+                            {formatQty(product.stockQty)} {product.unit} ·{" "}
+                          </span>
+                        )}
                         {product.categoryName ?? "Uncategorised"}
                         {product.code ? (
                           <span className="font-mono"> · {product.code}</span>
@@ -266,7 +272,7 @@ export function LabelPicker({
                         )}
                       </span>
                     </td>
-                    <td className="hidden whitespace-nowrap px-3 py-2 text-right text-zinc-600 sm:table-cell">
+                    <td className="hidden whitespace-nowrap px-3 py-2 text-right text-zinc-600 xl:table-cell">
                       {product.trackStock ? `${formatQty(product.stockQty)} ${product.unit}` : "—"}
                     </td>
                     <td className="whitespace-nowrap py-2 pl-2 pr-4 text-right font-medium text-zinc-900 sm:px-3">{product.price}</td>
