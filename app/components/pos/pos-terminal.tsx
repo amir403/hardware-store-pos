@@ -13,6 +13,7 @@ import {
   FileTextIcon,
   LayersIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
 } from "lucide-react";
 import {
   createSaleAction,
@@ -60,10 +61,14 @@ export type PosCustomer = {
   priceTier: "RETAIL" | "WHOLESALE";
 };
 
-/** Products shown before the cashier types or picks a category. */
+/** Products shown before the cashier types, when the shop has no categories. */
 const DEFAULT_RESULTS = 12;
-/** Upper bound once a search or category narrows the list. */
+/** Upper bound for search results. */
 const FILTERED_RESULTS = 40;
+/** Best sellers shown on the browse screen. */
+const TOP_SELLERS = 8;
+/** Category value for products that have none (not a valid category name). */
+const NO_CATEGORY = "\u0000none";
 
 export type PosHeldSaleLine = {
   productId: string;
@@ -119,6 +124,7 @@ const inputClass =
 
 export function PosTerminal({
   products,
+  topSellerIds = [],
   customers,
   currency,
   pricesIncludeTax,
@@ -130,6 +136,8 @@ export function PosTerminal({
   notice,
 }: {
   products: PosProduct[];
+  /** Most-sold product ids, best first; inactive ones are skipped. */
+  topSellerIds?: string[];
   customers: PosCustomer[];
   currency: string;
   pricesIncludeTax: boolean;
@@ -199,20 +207,42 @@ export function PosTerminal({
   );
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const categories = useMemo(
-    () =>
-      [...new Set(products.map((p) => p.categoryName).filter((c): c is string => !!c))].sort(),
-    [products]
-  );
+  /** Category cards with product counts; products without one share a last card. */
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of products) {
+      const key = p.categoryName ?? NO_CATEGORY;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return [...counts]
+      .sort(([a], [b]) => (a === NO_CATEGORY ? 1 : b === NO_CATEGORY ? -1 : a.localeCompare(b)))
+      .map(([name, count]) => ({ name, count }));
+  }, [products]);
+
+  const topSellers = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return topSellerIds
+      .map((id) => byId.get(id))
+      .filter((p): p is PosProduct => !!p)
+      .slice(0, TOP_SELLERS);
+  }, [products, topSellerIds]);
 
   const pool = useMemo(
-    () => (category ? products.filter((p) => p.categoryName === category) : products),
+    () =>
+      category
+        ? products.filter((p) => (p.categoryName ?? NO_CATEGORY) === category)
+        : products,
     [products, category]
   );
 
+  // With no search and no category open, the screen shows best sellers and category cards.
+  // A shop that never set categories keeps the old short product list instead.
+  const hasCategories = categories.some((c) => c.name !== NO_CATEGORY);
+  const browsing = !query.trim() && !category && hasCategories;
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return pool.slice(0, category ? FILTERED_RESULTS : DEFAULT_RESULTS);
+    if (!q) return category ? pool : pool.slice(0, DEFAULT_RESULTS);
     return pool
       .filter(
         (p) =>
@@ -231,7 +261,9 @@ export function PosTerminal({
     () =>
       query.trim()
         ? results.map((product) => ({ kind: "product", product }))
-        : groupForGrid(pool).slice(0, category ? FILTERED_RESULTS : DEFAULT_RESULTS),
+        : category
+          ? groupForGrid(pool)
+          : groupForGrid(pool).slice(0, DEFAULT_RESULTS),
     [query, results, pool, category]
   );
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
@@ -837,26 +869,67 @@ export function PosTerminal({
           )}
         </div>
 
-        {categories.length > 0 && (
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-            {["", ...categories].map((c) => (
-              <button
-                key={c || "all"}
-                type="button"
-                onClick={() => setCategory(c)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition hover:brightness-95 ${
-                  c
-                    ? category === c
-                      ? toneFor(c)!.chipOn
-                      : toneFor(c)!.chip
-                    : category === c
-                      ? "border-brand-700 bg-brand-700 text-white"
-                      : "border-zinc-300 bg-white text-zinc-600"
-                }`}
-              >
-                {c || t("All")}
-              </button>
-            ))}
+        {browsing ? (
+          <>
+            {topSellers.length > 0 && (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("Best sellers (30 days)")}
+                </h2>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {topSellers.map((p) => renderProduct(p))}
+                </div>
+              </section>
+            )}
+            <section className="flex flex-col gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("Categories")}
+              </h2>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-4">
+                {categories.map(({ name, count }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setCategory(name)}
+                    className={`flex min-h-16 flex-col justify-between gap-1 rounded-xl border p-3 text-left transition hover:shadow-sm hover:brightness-95 ${
+                      toneFor(name === NO_CATEGORY ? null : name)?.chip ??
+                      "border-zinc-200 bg-white text-zinc-700"
+                    }`}
+                  >
+                    <span className="line-clamp-2 text-sm font-semibold">
+                      {name === NO_CATEGORY ? t("No category") : name}
+                    </span>
+                    <span className="text-xs opacity-70">
+                      {count} {count === 1 ? t("item") : t("items")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : (
+        <>
+        {category && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCategory("");
+                setOpenGroupId(null);
+              }}
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+            >
+              <ChevronLeftIcon className="h-3.5 w-3.5" />
+              {t("All categories")}
+            </button>
+            <span
+              className={`truncate rounded-full border px-3 py-1 text-xs font-medium ${
+                toneFor(category === NO_CATEGORY ? null : category)?.chipOn ??
+                "border-zinc-600 bg-zinc-600 text-white"
+              }`}
+            >
+              {category === NO_CATEGORY ? t("No category") : category}
+            </span>
           </div>
         )}
 
@@ -923,6 +996,8 @@ export function PosTerminal({
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* Held bills */}
         {heldSales.length > 0 && (

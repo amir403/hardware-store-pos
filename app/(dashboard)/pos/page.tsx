@@ -45,6 +45,17 @@ export default async function PosPage({
     getOpenShift(),
   ]);
 
+  // Ranked by how many bills carried the item, so meters/kg don't outweigh pieces.
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+  const topRows = await prisma.saleItem.groupBy({
+    by: ["productId"],
+    where: { sale: { status: "COMPLETED", createdAt: { gte: since } } },
+    _count: { productId: true },
+    orderBy: { _count: { productId: "desc" } },
+    take: 16,
+  });
+
   const heldSales: PosHeldSale[] = heldRows.map((sale) => ({
     id: sale.id,
     invoiceNo: sale.invoiceNo,
@@ -91,6 +102,7 @@ export default async function PosPage({
       title={t("New Sale")}
       subtitle={settings.storeName}
       products={posProducts}
+      topSellerIds={topRows.map((r) => r.productId)}
       customers={customers}
       currency={settings.currency}
       pricesIncludeTax={settings.pricesIncludeTax}

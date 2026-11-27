@@ -56,6 +56,8 @@ const UR: Record<string, string> = {
   "in cart": "cart mein",
   designs: "design",
   "No products match": "Koi maal nahi mila",
+  "Best sellers (30 days)": "Zyada bikne wale (30 din)",
+  "No category": "Baghair qism",
   Cart: "Cart",
   item: "cheez",
   items: "cheezein",
