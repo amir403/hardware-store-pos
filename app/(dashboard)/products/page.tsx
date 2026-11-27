@@ -242,15 +242,16 @@ export default async function ProductsPage({
 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full min-w-[640px] text-left lg:min-w-0 text-sm">
+        {/* On a phone only name, price and stock show; category and status move under the name. */}
+        <table className="w-full text-left text-sm sm:min-w-[640px] lg:min-w-0">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
               {sortHeader("name", "Product")}
-              <th className="px-4 py-3 font-medium">Category</th>
+              <th className="hidden px-4 py-3 font-medium md:table-cell">Category</th>
               {sortHeader("price", "Price", true)}
               {sortHeader("stock", "Stock", true)}
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3" />
+              <th className="hidden px-4 py-3 font-medium md:table-cell">Status</th>
+              <th className="hidden px-4 py-3 sm:table-cell" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -289,27 +290,37 @@ export default async function ProductsPage({
                   </tr>
                 )}
                 <tr className="hover:bg-zinc-50">
-                  <td className={`py-3 pr-4 ${showGroups && product.groupId ? "pl-10" : "pl-4"}`}>
+                  <td className={`py-3 pr-2 sm:pr-4 ${showGroups && product.groupId ? "pl-6 sm:pl-10" : "pl-3 sm:pl-4"}`}>
                     <div className="flex items-center gap-3">
-                      <ProductThumb src={product.imageUrl} name={product.name} />
+                      <span className="hidden sm:block">
+                        <ProductThumb src={product.imageUrl} name={product.name} />
+                      </span>
                       <div className="min-w-0">
                         <p className="font-medium text-zinc-900">
-                          {(showGroups && variantLabel(product)) || product.name}
+                          {canManage ? (
+                            <Link href={`/products/${product.id}`} className="hover:text-brand-700 hover:underline">
+                              {(showGroups && variantLabel(product)) || product.name}
+                            </Link>
+                          ) : (
+                            (showGroups && variantLabel(product)) || product.name
+                          )}
                         </p>
                         <p className="text-xs text-zinc-400">
                           {product.sku ?? "No SKU"}
                           {product.unit !== "pcs" ? ` · per ${product.unit}` : ""}
+                          {product.category && <span className="md:hidden"> · {product.category.name}</span>}
+                          {!product.isActive && <span className="font-medium text-zinc-500 md:hidden"> · Inactive</span>}
                         </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">
+                  <td className="hidden px-4 py-3 text-zinc-600 md:table-cell">
                     {product.category?.name ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-right font-medium text-zinc-900">
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-medium text-zinc-900 sm:px-4">
                     {formatMoney(toNum(product.price), settings.currency)}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-right sm:px-4">
                     {product.trackStock ? (
                       <span
                         className={`font-medium ${
@@ -326,7 +337,7 @@ export default async function ProductsPage({
                       <span className="text-zinc-400">untracked</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 md:table-cell">
                     {product.isActive ? (
                       <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                         Active
@@ -337,7 +348,7 @@ export default async function ProductsPage({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="hidden px-4 py-3 sm:table-cell">
                     <div className="flex items-center justify-end gap-1">
                       {canManage && (
                         <>

@@ -12,19 +12,11 @@ import { SubmitButton } from "@/app/components/submit-button";
 import { adjustStockAction } from "@/app/actions/inventory";
 import { ConfirmForm } from "@/app/components/confirm-form";
 import { Drawer } from "@/app/components/drawer";
+import { MOVEMENT_TYPES } from "@/app/lib/stock-movements";
 
 export const metadata = { title: "Inventory" };
 
 const PAGE_SIZE = 50;
-
-const MOVEMENT_TYPES: Record<StockMovementType, { label: string; style: string }> = {
-  SALE: { label: "Sale", style: "bg-blue-50 text-blue-700" },
-  PURCHASE: { label: "Purchase", style: "bg-emerald-50 text-emerald-700" },
-  RETURN: { label: "Return", style: "bg-violet-50 text-violet-700" },
-  ADJUSTMENT: { label: "Adjustment", style: "bg-amber-50 text-amber-700" },
-  DAMAGE: { label: "Damage", style: "bg-red-50 text-red-700" },
-  SUPPLIER_RETURN: { label: "To supplier", style: "bg-orange-50 text-orange-700" },
-};
 
 const isType = (value: string | undefined): value is StockMovementType =>
   value !== undefined && value in MOVEMENT_TYPES;
@@ -143,8 +135,8 @@ export default async function InventoryPage({
         }
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="col-span-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 sm:col-span-1">
           <p className="text-xs font-medium text-zinc-500">Stock value at cost</p>
           <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{formatMoney(stockValue, settings.currency)}</p>
           <p className="text-xs text-zinc-400">
@@ -262,15 +254,16 @@ export default async function InventoryPage({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          {/* On a phone: product (date under it), type and change; reason and user are on the bill. */}
+          <table className="w-full text-left text-sm sm:min-w-[760px]">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                <th className="px-4 py-2.5 font-medium">Date</th>
-                <th className="px-4 py-2.5 font-medium">Product</th>
-                <th className="px-4 py-2.5 font-medium">Type</th>
-                <th className="px-4 py-2.5 text-right font-medium">Change</th>
-                <th className="px-4 py-2.5 font-medium">Reason</th>
-                <th className="px-4 py-2.5 font-medium">By</th>
+                <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Date</th>
+                <th className="px-3 py-2.5 font-medium sm:px-4">Product</th>
+                <th className="px-2 py-2.5 font-medium sm:px-4">Type</th>
+                <th className="px-3 py-2.5 text-right font-medium sm:px-4">Change</th>
+                <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Reason</th>
+                <th className="hidden px-4 py-2.5 font-medium sm:table-cell">By</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -286,13 +279,14 @@ export default async function InventoryPage({
                 const source = m.sale ? `/sales/${m.sale.id}` : m.purchase ? `/purchases/${m.purchase.id}` : null;
                 return (
                   <tr key={m.id} className="hover:bg-zinc-50">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">{formatDateTime(m.createdAt)}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="hidden whitespace-nowrap px-4 py-2.5 text-zinc-500 sm:table-cell">{formatDateTime(m.createdAt)}</td>
+                    <td className="px-3 py-2.5 sm:px-4">
                       <Link href={`/products/${m.product.id}`} className="font-medium text-zinc-900 hover:underline">
                         {m.product.name}
                       </Link>
+                      <p className="text-xs text-zinc-400 sm:hidden">{formatDateTime(m.createdAt)}</p>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-2 py-2.5 sm:px-4">
                       <span
                         className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                           MOVEMENT_TYPES[m.type]?.style ?? "bg-zinc-100 text-zinc-600"
@@ -302,14 +296,14 @@ export default async function InventoryPage({
                       </span>
                     </td>
                     <td
-                      className={`whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums ${
+                      className={`whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums sm:px-4 ${
                         change > 0 ? "text-emerald-600" : "text-red-600"
                       }`}
                     >
                       {change > 0 ? "+" : ""}
                       {formatQty(change)} <span className="text-xs font-normal text-zinc-400">{m.product.unit}</span>
                     </td>
-                    <td className="max-w-72 truncate px-4 py-2.5 text-zinc-500">
+                    <td className="hidden max-w-72 truncate px-4 py-2.5 text-zinc-500 sm:table-cell">
                       {source ? (
                         <Link href={source} className="hover:text-zinc-900 hover:underline">
                           {m.reason ?? "Open"}
@@ -318,7 +312,7 @@ export default async function InventoryPage({
                         (m.reason ?? "—")
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-zinc-500">{m.user?.name ?? "—"}</td>
+                    <td className="hidden whitespace-nowrap px-4 py-2.5 text-zinc-500 sm:table-cell">{m.user?.name ?? "—"}</td>
                   </tr>
                 );
               })}

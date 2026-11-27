@@ -119,7 +119,7 @@ export default async function SuppliersPage({
         }
       />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+      <div className="mb-4 grid grid-cols-2 gap-3">
         <Link href={href({ show: "owed", sort: "owed" })} className="rounded-xl border border-zinc-200 bg-white px-4 py-3 transition hover:border-zinc-300">
           <p className="text-xs font-medium text-zinc-500">We owe</p>
           <p className={`mt-1 text-lg font-semibold tabular-nums ${totalPayable > 0 ? "text-amber-700" : "text-zinc-900"}`}>
@@ -161,15 +161,16 @@ export default async function SuppliersPage({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        {/* On a phone: name (phone under it) and what we owe; a tap opens the ledger with the rest. */}
+        <table className="w-full text-left text-sm sm:min-w-[720px]">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
               {sortHeader("name", "Supplier")}
-              <th className="px-4 py-3 font-medium">Phone</th>
-              <th className="px-4 py-3 text-right font-medium">Purchases</th>
-              {sortHeader("recent", "Last purchase")}
+              <th className="hidden px-4 py-3 font-medium sm:table-cell">Phone</th>
+              <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Purchases</th>
+              {sortHeader("recent", "Last purchase", "hidden sm:table-cell")}
               {sortHeader("owed", "We owe", "text-right")}
-              <th className="px-4 py-3" />
+              <th className="hidden px-4 py-3 sm:table-cell" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -190,11 +191,12 @@ export default async function SuppliersPage({
                   >
                     {supplier.name}
                   </Link>
-                  {supplier.notes && <p className="max-w-72 truncate text-xs text-zinc-400">{supplier.notes}</p>}
+                  {supplier.phone && <p className="text-xs text-zinc-500 sm:hidden">{supplier.phone}</p>}
+                  {supplier.notes && <p className="max-w-40 truncate text-xs text-zinc-400 sm:max-w-72">{supplier.notes}</p>}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-zinc-600">{supplier.phone ?? "—"}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-zinc-600">{supplier._count.purchases}</td>
-                <td className="whitespace-nowrap px-4 py-3">
+                <td className="hidden whitespace-nowrap px-4 py-3 text-zinc-600 sm:table-cell">{supplier.phone ?? "—"}</td>
+                <td className="hidden px-4 py-3 text-right tabular-nums text-zinc-600 sm:table-cell">{supplier._count.purchases}</td>
+                <td className="hidden whitespace-nowrap px-4 py-3 sm:table-cell">
                   {last ? (
                     <>
                       <span className="text-zinc-700">{formatDate(last.createdAt)}</span>
@@ -213,7 +215,7 @@ export default async function SuppliersPage({
                     <span className="text-zinc-300">—</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden px-4 py-3 sm:table-cell">
                   {/* z-10 keeps these above the stretched row link. */}
                   <div className="relative z-10 flex items-center justify-end gap-1">
                     {owed > 0 && (
